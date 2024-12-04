@@ -5,7 +5,6 @@
 * @description Adds role colors to usernames in mentions, typing indicators, account area, and voice channels.
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/MoreRoleColors
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/MoreRoleColors/MoreRoleColors.plugin.js
-* @updateUrl https://github.com/DaddyBoard/BD-Plugins/blob/main/MoreRoleColors/MoreRoleColors.plugin.js
 * @invite ggNWGDV7e2
 */
 
