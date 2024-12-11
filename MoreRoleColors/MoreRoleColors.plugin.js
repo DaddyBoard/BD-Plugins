@@ -271,47 +271,49 @@ module.exports = class MoreRoleColors {
         });
     }
 
-    patchTypingUsers() {
+    patchTypingUsers() {        
+        const cache = new WeakMap();
+
         Patcher.after("MoreRoleColors-typingUsers", TypingModule, "Z", (that, args, res) => {
-            const original = res.type;
-            res.type = class extends res.type {
-                constructor() {
-                    super(...arguments);
-                    res.type = original;
-                }
-                
-                filterTypingUsers(typingUsers) {
-                    if (!typingUsers) return [];
-                    return Object.keys(typingUsers)
+            let newType = cache.get(res.type);
+
+            if (!newType) {
+                const target = res.type;
+
+                newType = function(props) {
+                    const res = target.apply(this, arguments);
+
+                    const typingUsers = Object.keys(props.typingUsers)
                         .filter(e => e != UserStore.getCurrentUser().id)
-                        .filter(e => !RelationshipStore.isBlocked(e))
+                        .filter(e => !RelationshipStore.isBlockedOrIgnored(e))
                         .map(e => UserStore.getUser(e))
                         .filter(e => e != null);
-                }
-                
-                render() {
-                    const res = super.render();
 
                     const typing = Utils.findInTree(res, (node) => node?.className?.startsWith("typingDots_"), {
                         walkable: ["props", "children"]
                     });
 
                     if (typing && typeof typing?.children?.[1]?.props?.children !== "string") {
-                        const validUserIds = this.filterTypingUsers(this.props.typingUsers).map(u => u.id);
+                        const validUserIds = typingUsers.map(u => u.id);
 
                         if (validUserIds.length <= 3) {
                             let count = 0;
                             typing.children[1].props.children = typing.children[1].props.children.map((m, i) => typeof m === "string" ? m : React.createElement("strong", {
                                 key: i,
                                 children: m.props.children,
-                                style: { color: GuildMemberStore.getMember(this.props.guildId, validUserIds[count++])?.colorString }
+                                style: { color: GuildMemberStore.getMember(props.guildId, validUserIds[count++])?.colorString }
                             }));
                         }
                     }
-                    
+
                     return res;
                 }
-            };
+
+                cache.set(res.type, newType);
+                cache.set(newType, newType);
+            }
+
+            res.type = newType;
         });
     }
 
@@ -583,7 +585,7 @@ module.exports = class MoreRoleColors {
                         const member = GuildMemberStore.getMember(displayProfile?.guildId, displayProfile?.userId);
 
                         if (!res?.props) return res;
-                        res.props.children[0].props.children[0].props.children.props.style = {color: member.colorString}
+                        res.props.children[0].props.children[0].props.children.props.style = {color: member?.colorString}
                         return res;
                     }
                 });
