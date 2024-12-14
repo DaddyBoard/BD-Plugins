@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.0.1
+* @version 1.0.2
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/MoreRoleColors
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/MoreRoleColors/MoreRoleColors.plugin.js
@@ -24,7 +24,14 @@ const GuildStore = BdApi.Webpack.getStore("GuildStore");
 const config = {
     changelog: [
         {
-            "title": "v 1.0.1 Update",
+            "title": "v1.0.2 Update",
+            "type": "fixed",
+            "items": [
+                "Changed misleading description for the `Messages` setting. It now says `Colors users text by their role color` instead of `Colors usernames in messages`."
+            ]
+        },
+        {
+            "title": "v1.0.1 Update",
             "type": "fixed",
             "items": [
                 "General Coloring settings were okay, but every other setting wouldn't show the true enabled/disabled state. This has now been fixed. Apologies."
@@ -43,7 +50,7 @@ const config = {
                     "type": "switch",
                     "id": "messages",
                     "name": "Messages",
-                    "note": "Colors usernames in messages",
+                    "note": "Colors users text by their role color",
                     "value": BdApi.Data.load('MoreRoleColors', 'settings')?.messages ?? true
                 },
                 {
