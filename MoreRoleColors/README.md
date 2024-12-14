@@ -6,7 +6,7 @@
 ![GitHub forks](https://img.shields.io/github/forks/DaddyBoard/BD-Plugins?style=social)
 ![GitHub issues](https://img.shields.io/github/issues/DaddyBoard/BD-Plugins/MoreRoleColors)
 
-A BetterDiscord plugin that enhances Discord by adding role colors to usernames across various components, ensuring a vibrant and personalized experience.
+Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 
 ## 🚀 Features
 
