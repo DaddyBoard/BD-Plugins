@@ -3,8 +3,8 @@
  * @author DaddyBoard
  * @version 1.3
  * @description Changes Discord themes randomly at a customizable interval, with theme selection options and optional notifications.
- * @website https://github.com/DaddyBoard/RandomThemeChanger
- * @source https://raw.githubusercontent.com/DaddyBoard/RandomThemeChanger/main/RandomThemeChanger.plugin.js
+ * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/RandomThemeSwitcher
+ * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/RandomThemeSwitcher/RandomThemeChanger.plugin.js
  */
 
 const config = {
