@@ -1,22 +1,22 @@
 /**
-* @name FriendCategories
-* @author DaddyBoard
-* @version 1.0.0
-* @description Categorise friends by custom categories 
-* @website https://github.com/DaddyBoard/BD-Plugins/tree/main/FriendCategories
-* @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/FriendCategories/FriendCategories.plugin.js
-* @invite ggNWGDV7e2
-*/
+ * @name FriendCategories
+ * @author DaddyBoard, Kaan
+ * @version 1.0.1
+ * @description Categorise friends by custom categories
+ * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/FriendCategories
+ * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/FriendCategories/FriendCategories.plugin.js
+ * @invite ggNWGDV7e2
+ */
 
-const { Webpack, React, Patcher, ReactUtils, Utils } = BdApi;
+const {Webpack, React, Patcher, ReactUtils, Utils} = BdApi;
 
 const config = {
     changelog: [
         {
-            "title": "Initial Release",
+            "title": "Added Collapsible Categories",
             "type": "added",
             "items": [
-                "Initial Release"
+                "Categories can now be collapsed/expanded"
             ]
         }
     ],
@@ -46,18 +46,27 @@ module.exports = class FriendCategories {
         this.config = config;
         this.defaultSettings = {
             categories: [],
-            orderList: true
+            orderList: true,
+            collapsedCategories: new Set()
         };
         this.settings = this.loadSettings();
     }
 
     loadSettings() {
-        return { ...this.defaultSettings, ...BdApi.Data.load('FriendCategories', 'settings') };
+        const savedSettings = BdApi.Data.load('FriendCategories', 'settings');
+        if (savedSettings?.collapsedCategories) {
+            savedSettings.collapsedCategories = new Set(savedSettings.collapsedCategories);
+        }
+        return {...this.defaultSettings, ...savedSettings};
     }
 
     saveSettings(newSettings) {
+        const settingsToSave = {
+            ...newSettings,
+            collapsedCategories: Array.from(newSettings.collapsedCategories)
+        };
         this.settings = newSettings;
-        BdApi.Data.save('FriendCategories', 'settings', this.settings);
+        BdApi.Data.save('FriendCategories', 'settings', settingsToSave);
         this.forceUpdateComponents();
     }
 
@@ -67,12 +76,26 @@ module.exports = class FriendCategories {
         });
 
         return BdApi.UI.buildSettingsPanel({
-        settings: config.settings,
+            settings: config.settings,
             onChange: (category, id, value) => {
-                const newSettings = { ...this.settings, [id]: value };
+                const newSettings = {...this.settings, [id]: value};
                 this.saveSettings(newSettings);
             }
         });
+    }
+
+    toggleCategory(categoryId) {
+        const newSettings = {...this.settings};
+        const collapsedCategories = new Set(newSettings.collapsedCategories);
+
+        if (collapsedCategories.has(categoryId)) {
+            collapsedCategories.delete(categoryId);
+        } else {
+            collapsedCategories.add(categoryId);
+        }
+
+        newSettings.collapsedCategories = collapsedCategories;
+        this.saveSettings(newSettings);
     }
 
     applyCategories(children) {
@@ -84,19 +107,29 @@ module.exports = class FriendCategories {
         if (shopIndex >= 0 && baseElementIndex >= 0) {
             const sortedCategories = [...this.settings.categories].sort((a, b) => (a.index || 0) - (b.index || 0));
             const clonedElements = sortedCategories.map((category, index) => {
+                const categoryId = `custom-category-${index}`;
+                const isCollapsed = this.settings.collapsedCategories.has(categoryId);
+
                 const categoryElement = React.cloneElement(
-                    children[baseElementIndex], 
-                    { 
-                        key: `custom-category-${index}`,
-                        'data-category-id': `custom-category-${index}`,
+                    children[baseElementIndex],
+                    {
+                        key: categoryId,
+                        'data-category-id': categoryId,
                         children: React.createElement('div', {
                             className: "custom-category-header",
-                            style: { 
+                            style: {
                                 color: category.color,
                                 cursor: 'pointer',
-                                userSelect: 'none'
+                                userSelect: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px'
                             },
-                            'data-category-id': `custom-category-${index}`,
+                            'data-category-id': categoryId,
+                            onClick: (e) => {
+                                e.stopPropagation();
+                                this.toggleCategory(categoryId);
+                            },
                             onContextMenu: (e) => {
                                 e.stopPropagation();
                                 BdApi.ContextMenu.open(e, BdApi.ContextMenu.buildMenu([
@@ -107,14 +140,14 @@ module.exports = class FriendCategories {
                                             {
                                                 label: "Move Up",
                                                 disabled: category.index === 1,
-                                                action: () => this.moveCategory(`custom-category-${index}`, 'up')
+                                                action: () => this.moveCategory(categoryId, 'up')
                                             },
                                             {
                                                 label: "Move Down",
                                                 disabled: category.index === this.settings.categories.length,
-                                                action: () => this.moveCategory(`custom-category-${index}`, 'down')
+                                                action: () => this.moveCategory(categoryId, 'down')
                                             },
-                                            { type: "separator" },
+                                            {type: "separator"},
                                             {
                                                 label: "Edit Category",
                                                 action: () => {
@@ -141,8 +174,8 @@ module.exports = class FriendCategories {
                                                                 const color = document.getElementById("category-color").value;
                                                                 if (!name) return;
 
-                                                                const newSettings = { ...this.settings };
-                                                                const categoryIndex = newSettings.categories.findIndex((_, i) => i === index);
+                                                                const newSettings = {...this.settings};
+                                                                const categoryIndex = newSettings.categories.findIndex((_, i) => `custom-category-${i}` === categoryId);
                                                                 if (categoryIndex !== -1) {
                                                                     newSettings.categories[categoryIndex] = {
                                                                         ...newSettings.categories[categoryIndex],
@@ -166,7 +199,7 @@ module.exports = class FriendCategories {
                                                         {
                                                             danger: true,
                                                             onConfirm: () => {
-                                                                const newSettings = { ...this.settings };
+                                                                const newSettings = {...this.settings};
                                                                 newSettings.categories.splice(index, 1);
                                                                 this.saveSettings(newSettings);
                                                             }
@@ -178,7 +211,16 @@ module.exports = class FriendCategories {
                                     }
                                 ]))
                             },
-                            children: category.name
+                            children: [
+                                React.createElement('span', {
+                                        style: {
+                                            marginRight: '5px',
+                                            transition: 'transform 0.2s ease'
+                                        }
+                                    }, isCollapsed ? '▶' : '▼'
+                                ),
+                                category.name
+                            ]
                         })
                     }
                 );
@@ -188,7 +230,7 @@ module.exports = class FriendCategories {
                     return userIndex >= 0 ? children.splice(userIndex, 1)[0] : null;
                 }).filter(Boolean);
 
-                return [categoryElement, ...userElements];
+                return isCollapsed ? [categoryElement] : [categoryElement, ...userElements];
             }).flat();
 
             children.splice(shopIndex + 1, 0, ...clonedElements);
@@ -197,7 +239,7 @@ module.exports = class FriendCategories {
 
     createCategory(name, color) {
         const maxIndex = Math.max(0, ...this.settings.categories.map(c => c.index || 0));
-        const newCategory = { name, color, userIds: [], index: maxIndex + 1 };
+        const newCategory = {name, color, userIds: [], index: maxIndex + 1};
         const newSettings = {
             ...this.settings,
             categories: [...this.settings.categories, newCategory]
@@ -206,14 +248,13 @@ module.exports = class FriendCategories {
     }
 
     addUserToCategory(channelId, categoryName) {
-        const newSettings = { ...this.settings };
+        const newSettings = {...this.settings};
         const category = newSettings.categories.find(c => c.name === categoryName);
-        
+
         if (category) {
             if (category.userIds.includes(channelId)) {
                 category.userIds = category.userIds.filter(id => id !== channelId);
-            }
-            else {
+            } else {
                 newSettings.categories.forEach(cat => {
                     if (cat.name !== categoryName) {
                         cat.userIds = cat.userIds.filter(id => id !== channelId);
@@ -241,7 +282,7 @@ module.exports = class FriendCategories {
                             checked: category.userIds.includes(channelId),
                             action: () => this.addUserToCategory(channelId, category.name)
                         })),
-                        { type: "separator" },
+                        {type: "separator"},
                         {
                             label: "Create New Category",
                             action: () => {
@@ -277,9 +318,9 @@ module.exports = class FriendCategories {
     }
 
     setupListPatch() {
-        return BdApi.Patcher.after('FriendCategories', 
-            BdApi.Webpack.getModule(x => x.ListThin).ListThin, 
-            'render', 
+        return BdApi.Patcher.after('FriendCategories',
+            BdApi.Webpack.getModule(x => x.ListThin).ListThin,
+            'render',
             (_, __, returnValue) => {
                 const children = returnValue.props.children?.[0]?.props?.children?.props?.children;
                 this.applyCategories(children);
@@ -288,110 +329,14 @@ module.exports = class FriendCategories {
         );
     }
 
-    setupCategoryContextMenu() {
-        return BdApi.ContextMenu.patch("div.custom-category-header", (returnValue, props) => {
-        const categoryMatch = props.target?.closest('[data-category-id]');
-        if (!categoryMatch) return;
-
-        const categoryId = categoryMatch.getAttribute('data-category-id');
-        const category = this.settings.categories.find((_, index) => `custom-category-${index}` === categoryId);
-        if (!category) return;
-
-        const isFirst = category.index === 1;
-        const isLast = category.index === this.settings.categories.length;
-
-        returnValue.props.children = [
-            BdApi.ContextMenu.buildItem({
-                    type: "submenu",
-                    label: "Category Options",
-                    items: [
-                        {
-                            label: "Move Up",
-                            disabled: isFirst,
-                            action: () => this.moveCategory(categoryId, 'up')
-                        },
-                        {
-                            label: "Move Down",
-                            disabled: isLast,
-                            action: () => this.moveCategory(categoryId, 'down')
-                        },
-                        { type: "separator" },
-                        {
-                            label: "Edit Category",
-                            action: () => {
-                                BdApi.UI.showConfirmationModal(
-                                    "Edit Category",
-                                    React.createElement("div", {
-                                        children: [
-                                            React.createElement("input", {
-                                                type: "text",
-                                                placeholder: "Category Name",
-                                                id: "category-name",
-                                                defaultValue: category.name
-                                            }),
-                                            React.createElement("input", {
-                                                type: "color",
-                                                id: "category-color",
-                                                defaultValue: category.color
-                                            })
-                                        ]
-                                    }),
-                                    {
-                                        onConfirm: () => {
-                                            const name = document.getElementById("category-name").value;
-                                            const color = document.getElementById("category-color").value;
-                                            if (!name) return;
-
-                                            const newSettings = { ...this.settings };
-                                            const categoryIndex = newSettings.categories.findIndex((_, index) => `custom-category-${index}` === categoryId);
-                                            if (categoryIndex !== -1) {
-                                                newSettings.categories[categoryIndex] = {
-                                                    ...newSettings.categories[categoryIndex],
-                                                    name,
-                                                    color
-                                                };
-                                                this.saveSettings(newSettings);
-                                            }
-                                        }
-                                    }
-                                );
-                            }
-                        },
-                        {
-                            label: "Delete Category",
-                            color: "RED",
-                            action: () => {
-                                BdApi.UI.showConfirmationModal(
-                                    "Delete Category",
-                                    "Are you sure you want to delete this category?",
-                                    {
-                                        danger: true,
-                                        onConfirm: () => {
-                                            const newSettings = { ...this.settings };
-                                            const categoryIndex = newSettings.categories.findIndex((_, index) => `custom-category-${index}` === categoryId);
-                                            if (categoryIndex !== -1) {
-                                                newSettings.categories.splice(categoryIndex, 1);
-                                                this.saveSettings(newSettings);
-                                            }
-                                        }
-                                    }
-                                );
-                            }
-                        }
-                    ]
-                })
-            ];
-        });
-    }
-
     moveCategory(categoryId, direction) {
-        const newSettings = { ...this.settings };
+        const newSettings = {...this.settings};
         const categoryIndex = newSettings.categories.findIndex((_, index) => `custom-category-${index}` === categoryId);
-        
+
         if (categoryIndex !== -1) {
             const categories = [...newSettings.categories];
             const category = categories[categoryIndex];
-            
+
             if (direction === 'up' && category.index > 1) {
                 const targetCategory = categories.find(c => c.index === category.index - 1);
                 if (targetCategory) {
@@ -405,7 +350,7 @@ module.exports = class FriendCategories {
                     category.index++;
                 }
             }
-            
+
             newSettings.categories = categories.sort((a, b) => (a.index || 0) - (b.index || 0));
             this.saveSettings(newSettings);
         }
@@ -436,8 +381,7 @@ module.exports = class FriendCategories {
     forceUpdateComponents() {
         BdApi.ReactUtils.getOwnerInstance(
             document.querySelector("nav[class^=privateChannels_] > [class^=scroller_][class*=thin_]"),
-            { filter: m => m.props.channels }
+            {filter: m => m.props.channels}
         ).forceUpdate()
     }
-
 }
