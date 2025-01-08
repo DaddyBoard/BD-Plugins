@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.0.2
+* @version 1.0.3
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/MoreRoleColors
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/MoreRoleColors/MoreRoleColors.plugin.js
@@ -24,17 +24,11 @@ const GuildStore = BdApi.Webpack.getStore("GuildStore");
 const config = {
     changelog: [
         {
-            "title": "v1.0.2 Update",
+            "title": "v1.0.3 Update",
             "type": "fixed",
             "items": [
-                "Changed misleading description for the `Messages` setting. It now says `Colors users text by their role color` instead of `Colors usernames in messages`."
-            ]
-        },
-        {
-            "title": "v1.0.1 Update",
-            "type": "fixed",
-            "items": [
-                "General Coloring settings were okay, but every other setting wouldn't show the true enabled/disabled state. This has now been fixed. Apologies."
+                "Fixed user profile popout coloring.",
+                "Fixed console errors when a user is mentioned, but they are no longer in the server, or other weird edge cases."
             ]
         }
     ],
@@ -330,6 +324,8 @@ module.exports = class MoreRoleColors {
 
     patchMentions() {
         Patcher.after("MoreRoleColors-mentions", MentionModule, "Z", (_, [props], res) => {
+            if (!props?.userId || !res?.props?.children?.props) return res;
+
             const guildId = (() => {
                 if (!BdApi.Plugins.isEnabled("PingNotification")) return SelectedGuildStore.getGuildId();
                 
@@ -341,7 +337,7 @@ module.exports = class MoreRoleColors {
                 return SelectedGuildStore.getGuildId();
             })();
 
-            if (!guildId) return;
+            if (!guildId) return res;
             
             const member = GuildMemberStore.getMember(guildId, props.userId);
             
@@ -350,10 +346,14 @@ module.exports = class MoreRoleColors {
                 res.props.children.props.children = original;
                 
                 const ret = original(props, context);
-                ret.props.color = member?.colorString ? parseInt(member.colorString.slice(1), 16) : undefined;
+                if (ret?.props) {
+                    ret.props.color = member?.colorString ? parseInt(member.colorString.slice(1), 16) : undefined;
+                }
                 
                 return ret;
             };
+
+            return res;
         });
     }
 
@@ -577,7 +577,7 @@ module.exports = class MoreRoleColors {
     }
 
     patchUserProfile() {
-        const UserProfileModule = BdApi.Webpack.getByStrings("UserProfilePopoutBody", "dimissibleUpsellsEnabled", "isHovering:D", { defaultExport: false });
+        const UserProfileModule = BdApi.Webpack.getByStrings(".pronouns", "UserProfilePopoutBody", { defaultExport: false });
         const cache = new WeakMap();
 
         const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
