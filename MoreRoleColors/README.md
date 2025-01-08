@@ -1,5 +1,3 @@
-# PLEASE UPDATE TO BETTERDISCORD CORE 1.11.0 - THIS PLUGIN REQUIRES IT
-
 # MoreRoleColors
 
 ![GitHub stars](https://img.shields.io/github/stars/DaddyBoard/BD-Plugins?style=social)
