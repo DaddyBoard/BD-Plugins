@@ -1,10 +1,9 @@
 /**
  * @name FriendCategories
  * @author DaddyBoard, Kaan
- * @version 1.0.1
+ * @version 1.0.0
  * @description Categorise friends by custom categories
- * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/FriendCategories
- * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/FriendCategories/FriendCategories.plugin.js
+ * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
  */
 
@@ -13,10 +12,10 @@ const {Webpack, React, Patcher, ReactUtils, Utils} = BdApi;
 const config = {
     changelog: [
         {
-            "title": "Added Collapsible Categories",
+            "title": "Initial Release",
             "type": "added",
             "items": [
-                "Categories can now be collapsed/expanded"
+                "Initial Release"
             ]
         }
     ],
