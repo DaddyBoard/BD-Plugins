@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.0.3
+* @version 1.0.4
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/MoreRoleColors
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/MoreRoleColors/MoreRoleColors.plugin.js
@@ -24,11 +24,10 @@ const GuildStore = BdApi.Webpack.getStore("GuildStore");
 const config = {
     changelog: [
         {
-            "title": "v1.0.3 Update",
+            "title": "v1.0.4 Update",
             "type": "fixed",
             "items": [
-                "Fixed user profile popout coloring.",
-                "Fixed console errors when a user is mentioned, but they are no longer in the server, or other weird edge cases."
+                "Fixed AutoMod and other non-user entries crashing the client in Audit Log area."
             ]
         }
     ],
@@ -444,7 +443,7 @@ module.exports = class MoreRoleColors {
             const cache = new WeakMap();
 
             BdApi.Patcher.after("MoreRoleColors-auditLog", AuditLogItem.Z.prototype, "render", (instance, args, res) => {
-                if (res.type.MoreRoleColors) return;
+                if (res.type?.MoreRoleColors) return;
 
                 let newType = cache.get(res.type);
                 if (!newType) {
@@ -452,10 +451,10 @@ module.exports = class MoreRoleColors {
                         static MoreRoleColors = true;
                         renderTitle() {
                             const res = super.renderTitle();
+                            if (!res?.props?.children?.[0]) return res;
 
                             const user = res.props.children[0];
-
-                            if (user.type.MoreRoleColors) return res;
+                            if (!user?.type || user.type?.MoreRoleColors) return res;
 
                             let newType = cache.get(user.type);
                             if (!newType) {
@@ -463,8 +462,12 @@ module.exports = class MoreRoleColors {
                                     static MoreRoleColors = true;
                                     render() {
                                         const res = super.render();
+                                        if (!this.props?.user?.id) return res;
 
-                                        res.props.children[0].props.style = {color: GuildMemberStore.getMember(instance.props.guild.id, this.props.user.id)?.colorString};                             
+                                        const memberColor = GuildMemberStore.getMember(instance.props.guild.id, this.props.user.id)?.colorString;
+                                        if (memberColor && res.props?.children?.[0]?.props) {
+                                            res.props.children[0].props.style = {color: memberColor};
+                                        }
                                         return res;
                                     }
                                 }
@@ -472,7 +475,6 @@ module.exports = class MoreRoleColors {
                             }
 
                             user.type = newType;
-
                             return res;
                         }
                     }
