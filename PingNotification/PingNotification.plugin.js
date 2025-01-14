@@ -1,9 +1,9 @@
 /**
  * @name PingNotification
  * @author DaddyBoard
- * @version 7.2.5
+ * @version 7.2.6
  * @description Show in-app notifications for anything you would hear a ping for.
- * @source https://github.com/DaddyBoard/PingNotification
+ * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
  */
 
@@ -37,8 +37,7 @@ const config = {
             title: "Update",
             type: "improved",
             items: [
-                "Added new setting to use your custom friend nicknames for DMs",
-                "Meta update"
+                "Migrated plugin to grouped repo, update meta to reflect this"
             ]
         }
     ],
