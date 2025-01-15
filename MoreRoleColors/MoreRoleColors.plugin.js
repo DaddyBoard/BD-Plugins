@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.0.5
+* @version 1.0.6
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -22,6 +22,13 @@ const GuildStore = BdApi.Webpack.getStore("GuildStore");
 //types for changelog: added, fixed, improved, progress.
 const config = {
     changelog: [
+        {
+            "title": "v1.0.6 Update",
+            "type": "fixed",
+            "items": [
+                "Fixed PlatformIndicators clashing"
+            ]
+        },
         {
             "title": "v1.0.5 Update",
             "type": "fixed",
@@ -605,7 +612,20 @@ module.exports = class MoreRoleColors {
                         const member = GuildMemberStore.getMember(displayProfile?.guildId, displayProfile?.userId);
 
                         if (!res?.props) return res;
-                        res.props.children[0].props.children[0].props.children.props.style = {color: member?.colorString}
+
+                        const userObject = BdApi.Utils.findInTree(res,x=>x?.className?.includes('nickname'), {walkable: ['props','children']})
+                        if (!userObject) return res;
+                        if (!userObject?.style) {
+                            Object.defineProperty(userObject, "style", {
+                                value: { color: member?.colorString || "#FFFFFF" },
+                                writable: true,
+                                enumerable: true,
+                                configurable: true
+                            });
+                        }
+
+                        // res.props.children[0].props.children[0].props.children.props.style = {color: member?.colorString}
+                        // refrain from tree traversing, board
                         return res;
                     }
                 });
