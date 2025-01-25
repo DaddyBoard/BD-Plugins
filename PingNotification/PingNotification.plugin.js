@@ -1,7 +1,7 @@
 /**
  * @name PingNotification
  * @author DaddyBoard
- * @version 7.2.6
+ * @version 7.3.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -34,10 +34,10 @@ const ChannelAckModule = (() => {
 const config = {
     changelog: [
         {
-            title: "Update",
-            type: "improved",
+            title: "Added",
+            type: "added",
             items: [
-                "Migrated plugin to grouped repo, update meta to reflect this"
+                "Added new functionality to the 'Disable Media Interaction' setting, when enabled, clicking on links will navigate to the message instead of opening the link and navigating to the message.\n\nWhen disabled, clicking on links will open the link in browser, but does not close the notification or navigate to the message.\n\nThanks to haloTT100 for the suggestion: https://github.com/DaddyBoard/BD-Plugins/issues/10"
             ]
         }
     ],
@@ -1060,7 +1060,19 @@ module.exports = class PingNotification {
                 ? 'privacy-mode' 
                 : ''
             }`,
-            onClick: onClick,
+            onClick: (e) => {
+                const isLink = e.target.tagName === 'A' || e.target.closest('a');
+                
+                if (isLink) {
+                    e.stopPropagation();
+                    if (settings.disableMediaInteraction) {
+                        e.preventDefault();
+                        onClick();
+                    }
+                    return;
+                }
+                onClick();
+            },
             onMouseEnter: () => setIsPaused(true),
             onMouseLeave: () => setIsPaused(false),
             onMouseDown: handleSwipe,
