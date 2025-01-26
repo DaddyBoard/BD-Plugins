@@ -1,7 +1,7 @@
 /**
  * @name PingNotification
  * @author DaddyBoard
- * @version 7.3.0
+ * @version 7.4.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -34,7 +34,14 @@ const ChannelAckModule = (() => {
 const config = {
     changelog: [
         {
-            title: "Added",
+            title: "7.4.0 Added",
+            type: "added",
+            items: [
+                "Added new location for notifications: Top Centre.\n\nThanks to Atoshx for the suggestion: https://github.com/DaddyBoard/BD-Plugins/issues/11"
+            ]
+        },
+        {
+            title: "7.3.0 Added",
             type: "added",
             items: [
                 "Added new functionality to the 'Disable Media Interaction' setting, when enabled, clicking on links will navigate to the message instead of opening the link and navigating to the message.\n\nWhen disabled, clicking on links will open the link in browser, but does not close the notification or navigate to the message.\n\nThanks to haloTT100 for the suggestion: https://github.com/DaddyBoard/BD-Plugins/issues/10"
@@ -70,6 +77,7 @@ const config = {
                     value: "bottomRight",
                     options: [
                         { label: "Top Left", value: "topLeft" },
+                        { label: "Top Centre", value: "topCentre" },
                         { label: "Top Right", value: "topRight" },
                         { label: "Bottom Left", value: "bottomLeft" },
                         { label: "Bottom Right", value: "bottomRight" }
@@ -409,13 +417,45 @@ module.exports = class PingNotification {
             z-index: 9999;
             overflow: hidden;
             backdrop-filter: blur(10px);
-            animation: notificationPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             transform: translateZ(0);
+            opacity: 0;
         }
+
+        .ping-notification.show {
+            animation: notificationPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .ping-notification.centre {
+            left: 50% !important;
+            transform: translateX(-50%) scale(0.9) !important;
+        }
+
+        .ping-notification.centre.show {
+            transform: translateX(-50%) scale(1) !important;
+        }
+
         @keyframes notificationPop {
-            0% { transform: scale(0.9) translateZ(0); opacity: 0; }
-            100% { transform: scale(1) translateZ(0); opacity: 1; }
+            0% { 
+                opacity: 0;
+                transform: scale(0.9) translateZ(0);
+            }
+            100% { 
+                opacity: 1;
+                transform: scale(1) translateZ(0);
+            }
         }
+
+        @keyframes notificationPopCentre {
+            0% { 
+                opacity: 0;
+                transform: translateX(-50%) scale(0.9);
+            }
+            100% { 
+                opacity: 1;
+                transform: translateX(-50%) scale(1);
+            }
+        }
+
         .ping-notification-content {
             padding: 12px;
             cursor: pointer;
@@ -640,9 +680,13 @@ module.exports = class PingNotification {
 
     showNotification(message, channel) {
         const notificationElement = BdApi.DOM.createElement('div', {
-            className: 'ping-notification',
-            target: document.body
+            className: 'ping-notification'
         });
+        
+        if (this.settings.popupLocation.endsWith("Centre")) {
+            notificationElement.classList.add('centre');
+        }
+        
         notificationElement.creationTime = Date.now();
         notificationElement.channelId = channel.id;
         notificationElement.messageId = message.id;
@@ -666,10 +710,11 @@ module.exports = class PingNotification {
                 onSwipe: (direction) => {
                     const isRightSwipe = direction === 'right';
                     const isLeftSwipe = direction === 'left';
+                    const isTopCentre = this.settings.popupLocation === 'topCentre';
                     const isRightLocation = this.settings.popupLocation.endsWith("Right");
                     const isLeftLocation = this.settings.popupLocation.endsWith("Left");
 
-                    if ((isRightSwipe && isRightLocation) || (isLeftSwipe && isLeftLocation)) {
+                    if (isTopCentre || ((isRightSwipe && isRightLocation) || (isLeftSwipe && isLeftLocation))) {
                         this.removeNotification(notificationElement);
                     }
                 }
@@ -678,6 +723,11 @@ module.exports = class PingNotification {
         );
 
         this.activeNotifications.push(notificationElement);
+        document.body.appendChild(notificationElement);
+        
+        void notificationElement.offsetHeight;
+        notificationElement.classList.add('show');
+        
         this.adjustNotificationPositions();
 
         return notificationElement;
@@ -707,9 +757,10 @@ module.exports = class PingNotification {
 
     adjustNotificationPositions() {
         const { popupLocation } = this.settings;
-        let offset = 20;
+        let offset = 30;
         const isTop = popupLocation.startsWith("top");
         const isLeft = popupLocation.endsWith("Left");
+        const isCentre = popupLocation.endsWith("Centre");
 
         const sortedNotifications = [...this.activeNotifications].sort((a, b) => {
             return b.creationTime - a.creationTime;
@@ -728,12 +779,18 @@ module.exports = class PingNotification {
                 notification.style.top = 'auto';
             }
 
-            if (isLeft) {
+            if (isCentre) {
+                notification.style.left = '50%';
+                notification.style.right = 'auto';
+                notification.style.transform = 'translateX(-50%)';
+            } else if (isLeft) {
                 notification.style.left = '20px';
                 notification.style.right = 'auto';
+                notification.style.transform = 'none';
             } else {
                 notification.style.right = '20px';
                 notification.style.left = 'auto';
+                notification.style.transform = 'none';
             }
 
             offset += height + 10;
@@ -816,10 +873,11 @@ module.exports = class PingNotification {
                 onSwipe: (direction) => {
                     const isRightSwipe = direction === 'right';
                     const isLeftSwipe = direction === 'left';
+                    const isTopCentre = this.settings.popupLocation === 'topCentre';
                     const isRightLocation = this.settings.popupLocation.endsWith("Right");
                     const isLeftLocation = this.settings.popupLocation.endsWith("Left");
 
-                    if ((isRightSwipe && isRightLocation) || (isLeftSwipe && isLeftLocation)) {
+                    if (isTopCentre || ((isRightSwipe && isRightLocation) || (isLeftSwipe && isLeftLocation))) {
                         this.removeNotification(notificationElement);
                     }
                 }
@@ -998,24 +1056,33 @@ module.exports = class PingNotification {
 
         const handleSwipe = (e) => {
             const startX = e.touches ? e.touches[0].clientX : e.clientX;
+            const startY = e.touches ? e.touches[0].clientY : e.clientY;
+            let hasMoved = false;
+
             const handleMove = (moveEvent) => {
-                const currentX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
-                const deltaX = currentX - startX;
-                const threshold = 100;
+                if (!hasMoved) {
+                    const currentX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
+                    const currentY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
+                    const deltaX = currentX - startX;
+                    const deltaY = currentY - startY;
+                    const threshold = 100;
 
-                if (Math.abs(deltaX) > threshold) {
-                    const isRightSwipe = deltaX > 0;
-                    const isLeftSwipe = deltaX < 0;
-                    const isRightLocation = settings.popupLocation.endsWith("Right");
-                    const isLeftLocation = settings.popupLocation.endsWith("Left");
+                    if (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold) {
+                        hasMoved = true;
+                        const isTopCentre = settings.popupLocation === "topCentre";
+                        const isRightSwipe = deltaX > threshold;
+                        const isLeftSwipe = deltaX < -threshold;
+                        const isRightLocation = settings.popupLocation.endsWith("Right");
+                        const isLeftLocation = settings.popupLocation.endsWith("Left");
 
-                    if ((isRightSwipe && isRightLocation) || (isLeftSwipe && isLeftLocation)) {
-                        document.removeEventListener('mousemove', handleMove);
-                        document.removeEventListener('mouseup', handleEnd);
-                        document.removeEventListener('touchmove', handleMove);
-                        document.removeEventListener('touchend', handleEnd);
-                        
-                        onClose(true);
+                        if (
+                            isTopCentre ||
+                            (isRightSwipe && isRightLocation) ||
+                            (isLeftSwipe && isLeftLocation)
+                        ) {
+                            handleEnd();
+                            onClose(true);
+                        }
                     }
                 }
             };
