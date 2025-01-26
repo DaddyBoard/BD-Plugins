@@ -1,8 +1,8 @@
 # PingNotification
 
-![GitHub stars](https://img.shields.io/github/stars/DaddyBoard/PingNotification?style=social)
-![GitHub forks](https://img.shields.io/github/forks/DaddyBoard/PingNotification?style=social)
-![GitHub issues](https://img.shields.io/github/issues/DaddyBoard/PingNotification)
+![GitHub stars](https://img.shields.io/github/stars/DaddyBoard/BD-Plugins?style=social)
+![GitHub forks](https://img.shields.io/github/forks/DaddyBoard/BD-Plugins?style=social)
+![GitHub issues](https://img.shields.io/github/issues/DaddyBoard/BD-Plugins)
 
 A lightweight BetterDiscord plugin to display in-app notifications that focuses on simplicity and efficiency.
 
