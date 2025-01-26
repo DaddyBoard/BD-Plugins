@@ -30,17 +30,6 @@ Navigate to `BetterDiscord > Plugins > PingNotification settings` to:
 - Customise size of the popup
 And much more!
 
-## 📦 Latest Updates
-
-<details open>
-<summary><strong>v7.2.3</strong></summary>
-
- Added
-- Added new setting to close notifications upon reading message, by default it is enabled
-- Added new setting to hide notifications when you are in Do Not Disturb, by default it is disabled
-
-</details>
-
 ## 🐛 Known Issues
 
 - Some rare forms of messages dont display (like the default discord messages when someone joins a discord server `Glad you're here, person!`)

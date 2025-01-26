@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.0.6
+* @version 1.1.0
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -21,29 +21,22 @@ const GuildStore = BdApi.Webpack.getStore("GuildStore");
 
 //types for changelog: added, fixed, improved, progress.
 const config = {
+    banner: "https://i.imgur.com/SK9xPzS.gif",
     changelog: [
+        {
+            "title": "v1.1.0 Update",
+            "type": "improved",
+            "items": [
+                "Added new option to dynamically change the speaking indicator color to voice usernames.\n\n Thanks to [@Lilu-VA](https://github.com/Lilu-VA) for the suggestion!"
+            ]
+        },
         {
             "title": "v1.0.6 Update",
             "type": "fixed",
             "items": [
                 "Fixed PlatformIndicators clashing"
             ]
-        },
-        {
-            "title": "v1.0.5 Update",
-            "type": "fixed",
-            "items": [
-                "Updated Meta"
-            ]
-        },
-        {
-            "title": "v1.0.4 Update",
-            "type": "fixed",
-            "items": [
-                "Fixed AutoMod and other non-user entries crashing the client in Audit Log area."
-            ]
         }
-        
     ],
     settings: [
         {
@@ -66,6 +59,13 @@ const config = {
                     "name": "Voice Users",
                     "note": "Colors usernames in voice channels",
                     "value": BdApi.Data.load('MoreRoleColors', 'settings')?.voiceUsers ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "speakingIndicator",
+                    "name": "Speaking Indicator",
+                    "note": "Changes opacity of voice usernames when speaking",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.speakingIndicator ?? false
                 },
                 {
                     "type": "switch",
@@ -159,6 +159,7 @@ module.exports = class MoreRoleColors {
         this.meta = meta;
         this.defaultSettings = {
             voiceUsers: true,
+            speakingIndicator: false,
             typingUsers: true,
             mentions: true,
             accountArea: true,
@@ -178,6 +179,7 @@ module.exports = class MoreRoleColors {
             BdApi.UI.showChangelogModal({
                 title: this.meta.name,
                 subtitle: this.meta.version,
+                banner: config.banner,
                 changes: config.changelog
             });
             BdApi.Data.save('MoreRoleColors', 'lastVersion', this.meta.version);
@@ -285,7 +287,13 @@ module.exports = class MoreRoleColors {
             const target = returnValue?.props?.children?.props?.children;
             if (!target?.props) return;
             
-            target.props.style = { color: member.colorString, backfaceVisibility: "hidden" };
+            const isSpeaking = thisObject?.props?.speaking;
+            const color = member.colorString;
+            
+            target.props.style = { 
+                color: this.settings.speakingIndicator ? (isSpeaking ? color : `${color}90`) : color,
+                backfaceVisibility: "hidden" 
+            };
         });
     }
 
