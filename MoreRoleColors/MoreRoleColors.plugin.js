@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.1.0
+* @version 1.2.0
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -21,20 +21,20 @@ const GuildStore = BdApi.Webpack.getStore("GuildStore");
 
 //types for changelog: added, fixed, improved, progress.
 const config = {
-    banner: "https://i.imgur.com/SK9xPzS.gif",
+    banner: "",
     changelog: [
         {
-            "title": "v1.1.0 Update",
-            "type": "improved",
+            "title": "v1.2.0 added",
+            "type": "added",
             "items": [
-                "Added new option to dynamically change the speaking indicator color to voice usernames.\n\n Thanks to [@Lilu-VA](https://github.com/Lilu-VA) for the suggestion!"
+                "Added a new place to color your username in: server profiles, see [this](https://i.imgur.com/ALDORsE.mp4) for more info."
             ]
         },
         {
-            "title": "v1.0.6 Update",
+            "title": "v1.2.0 fixed",
             "type": "fixed",
             "items": [
-                "Fixed PlatformIndicators clashing"
+                "Fixed role headers breaking after discord update."
             ]
         }
     ],
@@ -126,6 +126,13 @@ const config = {
                     "name": "Role Headers",
                     "note": "Colors usernames in role headers",
                     "value": BdApi.Data.load('MoreRoleColors', 'settings')?.roleHeaders ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "serverProfileDisplayName",
+                    "name": "Server Profile Display Name",
+                    "note": "Colors display names in server profiles",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.serverProfileDisplayName ?? true
                 }
             ]
         },
@@ -168,6 +175,7 @@ module.exports = class MoreRoleColors {
             roleHeaders: true,
             messages: false,
             userProfile: true,
+            serverProfileDisplayName: true,
             Tags: true
         };
         this.settings = this.loadSettings();
@@ -195,6 +203,7 @@ module.exports = class MoreRoleColors {
         if (this.settings.messages) this.patchMessages();
         if (this.settings.userProfile) this.patchUserProfile();
         if (this.settings.Tags) this.patchTags();
+        if (this.settings.serverProfileDisplayName) this.patchServerProfileDisplayName();
         this.forceUpdateComponents();
     }
 
@@ -234,9 +243,15 @@ module.exports = class MoreRoleColors {
                         case 'messages': this.patchMessages(); break;
                         case 'userProfile': this.patchUserProfile(); break;
                         case 'Tags': this.patchTags(); break;
+                        case 'serverProfileDisplayName': this.patchServerProfileDisplayName(); break;
                     }
                 } else {
-                    Patcher.unpatchAll(`MoreRoleColors-${id}`);
+                    if (id === 'serverProfileDisplayName') {
+                        Patcher.unpatchAll("MoreRoleColors-ServerProfileDisplayName");
+                        Patcher.unpatchAll("MoreRoleColors-ServerProfileGuildSelector");
+                    } else {
+                        Patcher.unpatchAll(`MoreRoleColors-${id}`);
+                    }
                     if (id === 'accountArea' && this._unpatchAccountArea) {
                         this._unpatchAccountArea();
                     }
@@ -256,6 +271,9 @@ module.exports = class MoreRoleColors {
         Patcher.unpatchAll("MoreRoleColors-auditLog");
         Patcher.unpatchAll("MoreRoleColors-roleHeaders");
         Patcher.unpatchAll("MoreRoleColors-messages");
+        Patcher.unpatchAll("MoreRoleColors-ServerProfileDisplayName");
+        Patcher.unpatchAll("MoreRoleColors-ServerProfileGuildSelector");
+        Patcher.unpatchAll("MoreRoleColors-userProfile");
         if (this._unpatchAccountArea) this._unpatchAccountArea();
         if (this._unpatchUserProfile) this._unpatchUserProfile();
         if (this._unpatchTags) this._unpatchTags();
@@ -511,7 +529,7 @@ module.exports = class MoreRoleColors {
     patchRoleHeaders() {
         const map = new WeakMap();
 
-        BdApi.Patcher.after("MoreRoleColors-roleHeaders", BdApi.Webpack.getByStrings("{let{channel:t,className:n}=e,r=l.useDeferredValue(t)", { defaultExport: false }), "Z", (that, [{ currentUser }], res) => {
+        BdApi.Patcher.after("MoreRoleColors-roleHeaders", BdApi.Webpack.getBySource("getEnableHardwareAcceleration", "renderUserPopout", "openGuildSubscriptionModal"), "Z", (that, [{ currentUser }], res) => {
             let newType = map.get(res.type);
             if (!newType) {
                 newType = new Proxy(res.type, {
@@ -649,6 +667,7 @@ module.exports = class MoreRoleColors {
 
     patchTags() {
         const TagModule = BdApi.Webpack.getByStrings(".botTagInvert", { defaultExport: false });
+        TagModule.Z.displayName = "MoreRoleColorsTag";
 
         class TagWrapper extends BdApi.React.Component {
             constructor(props) {
@@ -677,6 +696,33 @@ module.exports = class MoreRoleColors {
         this._unpatchTags = () => {
             Patcher.unpatchAll("MoreRoleColors-Tags");
         };
+    }
+
+    patchServerProfileDisplayName() {
+        const ServerProfileGuildSelector = BdApi.Webpack.getBySource(".getFlattenedGuildIds", ".getGuilds", ".guildSelectOptionIcon", "Sizes.SMOL", { defaultExport: false });
+        let currentProfileGuildId = null;
+
+        Patcher.after("MoreRoleColors-ServerProfileGuildSelector", ServerProfileGuildSelector, "Z", (_, [props], res) => {
+            currentProfileGuildId = res.props.children.props.guildId;
+            return res;
+        });
+
+        BdApi.Webpack.waitForModule((e, m) => 
+            BdApi.Webpack.modules[m.id]?.toString?.()?.includes(".isVerifiedBot", "forceUsername:!0")
+        ).then(ServerProfileDisplayNameModule => {
+            Patcher.after("MoreRoleColors-ServerProfileDisplayName", ServerProfileDisplayNameModule, "Z", (_, [props], res) => {            
+                const target = res.props.children[0].props.children[0].props;
+                const currentUser = UserStore.getCurrentUser();
+                const member = GuildMemberStore.getMember(currentProfileGuildId, currentUser.id);
+                
+                if (member?.colorString) {
+                    target.style = { color: member.colorString };
+                }
+                
+                return res;
+            });
+
+        });
     }
 
 }
