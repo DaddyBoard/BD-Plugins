@@ -1,7 +1,7 @@
 /**
  * @name PingNotification
  * @author DaddyBoard
- * @version 7.4.0
+ * @version 7.4.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -34,17 +34,17 @@ const ChannelAckModule = (() => {
 const config = {
     changelog: [
         {
+            title: "7.4.1 Fixed",
+            type: "fixed",
+            items: [
+                "Fixed an issue where PingNotification would error out and not show a notification if the message content contained a forwarded message from a source you dont have access to."
+            ]
+        },
+        {
             title: "7.4.0 Added",
             type: "added",
             items: [
                 "Added new location for notifications: Top Centre.\n\nThanks to Atoshx for the suggestion: https://github.com/DaddyBoard/BD-Plugins/issues/11"
-            ]
-        },
-        {
-            title: "7.3.0 Added",
-            type: "added",
-            items: [
-                "Added new functionality to the 'Disable Media Interaction' setting, when enabled, clicking on links will navigate to the message instead of opening the link and navigating to the message.\n\nWhen disabled, clicking on links will open the link in browser, but does not close the notification or navigate to the message.\n\nThanks to haloTT100 for the suggestion: https://github.com/DaddyBoard/BD-Plugins/issues/10"
             ]
         }
     ],
@@ -265,24 +265,39 @@ module.exports = class PingNotification {
         this.messageCreateHandler = async (event) => {
             if (!event?.message) return;
             try {
-                let message = MessageStore.getMessage(event.message.channel_id, event.message.id) || 
-                              await MessageActions.fetchMessage({ 
-                                  channelId: event.message.channel_id, 
-                                  messageId: event.message.id 
-                              });
+                let message = MessageStore.getMessage(event.message.channel_id, event.message.id);
+                
+                if (!message) {
+                    try {
+                        message = await MessageActions.fetchMessage({ 
+                            channelId: event.message.channel_id, 
+                            messageId: event.message.id 
+                        });
+                    } catch (fetchError) {
+                        if (fetchError?.body?.code === 50001) {
+                            message = event.message;
+                        } else {
+                            throw fetchError;
+                        }
+                    }
+                }
                 
                 if (message.messageReference) {
-                    const referencedMessage = MessageStore.getMessage(
-                        message.messageReference.channel_id, 
-                        message.messageReference.message_id
-                    ) || await MessageActions.fetchMessage({
-                        channelId: message.messageReference.channel_id,
-                        messageId: message.messageReference.message_id
-                    });
-                    
-                    if (referencedMessage) {
-                        message.messageReference.author = referencedMessage.author;
-                        message.messageReference.message = referencedMessage;
+                    try {
+                        const referencedMessage = MessageStore.getMessage(
+                            message.messageReference.channel_id, 
+                            message.messageReference.message_id
+                        ) || await MessageActions.fetchMessage({
+                            channelId: message.messageReference.channel_id,
+                            messageId: message.messageReference.message_id
+                        });
+                        
+                        if (referencedMessage) {
+                            message.messageReference.author = referencedMessage.author;
+                            message.messageReference.message = referencedMessage;
+                        }
+                    } catch (refError) {
+                        console.debug("PingNotification: Could not fetch referenced message", refError);
                     }
                 }
                 
@@ -290,7 +305,10 @@ module.exports = class PingNotification {
                     this.onMessageReceived(message);
                 }
             } catch (error) {
-                console.error("PingNotification: Error fetching message", error);
+                console.error("PingNotification: Error handling message", error);
+                if (event.message) {
+                    this.onMessageReceived(event.message);
+                }
             }
         };
 
