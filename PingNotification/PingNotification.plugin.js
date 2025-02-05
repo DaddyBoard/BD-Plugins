@@ -1,7 +1,8 @@
 /**
  * @name PingNotification
  * @author DaddyBoard
- * @version 7.4.1
+ * @authorId 241334335884492810
+ * @version 7.4.2
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -34,17 +35,13 @@ const ChannelAckModule = (() => {
 const config = {
     changelog: [
         {
-            title: "7.4.1 Fixed",
+            title: "7.4.2 Fixed",
             type: "fixed",
             items: [
-                "Fixed an issue where PingNotification would error out and not show a notification if the message content contained a forwarded message from a source you dont have access to."
-            ]
-        },
-        {
-            title: "7.4.0 Added",
-            type: "added",
-            items: [
-                "Added new location for notifications: Top Centre.\n\nThanks to Atoshx for the suggestion: https://github.com/DaddyBoard/BD-Plugins/issues/11"
+                "The recent discord update minorly broke a few things, this update fixes the issues.",
+                "Fixed spoilered text not being visible in notifications.",
+                "Fixed gifs taking up max height in notifications.",
+                "Unrelated to discord breakages, but made the forwarded text font size the same as the dynamic scaling font size. (In other words, more consistent looking notifications)"
             ]
         }
     ],
@@ -546,8 +543,8 @@ module.exports = class PingNotification {
             filter: blur(0);
         }
 
-        .ping-notification .spoilerContent_aa9639,
-        .ping-notification .spoilerMarkdownContent_aa9639 {
+        .ping-notification .spoilerContent__54ab5,
+        .ping-notification .spoilerMarkdownContent__54ab5 {
             background-color: rgba(255, 255, 255, 0.15);
             border-radius: 3px;
             transition: background-color 0.2s ease;
@@ -560,7 +557,7 @@ module.exports = class PingNotification {
         .ping-notification-media [class*="videoContainer"],
         .ping-notification-media [class*="wrapper"],
         .ping-notification-media [class*="imageWrapper"] {
-            max-width: 100% !important;
+            max-width: auto !important;
             height: auto !important;
             object-fit: contain !important;
             pointer-events: auto !important;
@@ -1432,7 +1429,15 @@ module.exports = class PingNotification {
                         position: 'relative',
                         zIndex: settings.disableMediaInteraction ? 1 : 'auto'
                     },
-                    onClick: (e) => settings.disableMediaInteraction ? null : e.stopPropagation()
+                    onClick: (e) => settings.disableMediaInteraction ? null : e.stopPropagation(),
+                    ref: (element) => {
+                        if (element) {
+                            const forwardedContent = element.querySelector('.markup__75297.messageContent_c19a55');
+                            if (forwardedContent) {
+                                forwardedContent.style.fontSize = `${contentFontSize}px`;
+                            }
+                        }
+                    }
                 },
                     !message.isTestMessage && React.createElement(MessageAccessories, {
                         message: message,
