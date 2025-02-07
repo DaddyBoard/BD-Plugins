@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.0
+* @version 1.2.1
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -9,7 +9,7 @@
 
 const { Webpack, React, Patcher, ReactUtils, Utils } = BdApi;
 const getStore = Webpack.getStore;
-const VoiceUser = Webpack.getModule(m => m?.prototype?.renderName && m?.prototype?.renderAvatar);
+const VoiceUser = Webpack.getBySource("iconPriortySpeakerSpeaking", "avatarContainer");
 const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
@@ -24,17 +24,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "v1.2.0 added",
-            "type": "added",
-            "items": [
-                "Added a new place to color your username in: server profiles, see [this](https://i.imgur.com/ALDORsE.mp4) for more info."
-            ]
-        },
-        {
-            "title": "v1.2.0 fixed",
+            "title": "v1.2.1",
             "type": "fixed",
             "items": [
-                "Fixed role headers breaking after discord update."
+                "Fixed voice users causing crashing (thanks discord for constantly breaking stuff)"
             ]
         }
     ],
@@ -296,19 +289,21 @@ module.exports = class MoreRoleColors {
     }
 
     patchVoiceUsers() {
-        Patcher.after("MoreRoleColors-voiceUsers", VoiceUser.prototype, "renderName", (thisObject, _, returnValue) => {
-            if (!returnValue?.props) return;
+        Patcher.after("MoreRoleColors-voiceUsers", VoiceUser, "ZP", (_, [props], res) => {
+            if (!res?.props) return;
             
-            const member = GuildMemberStore.getMember(SelectedGuildStore.getGuildId(), thisObject?.props?.user?.id);
+            const member = GuildMemberStore.getMember(SelectedGuildStore.getGuildId(), props?.user?.id);
             if (!member?.colorString) return;
 
-            const target = returnValue?.props?.children?.props?.children;
-            if (!target?.props) return;
+            const usernameElement = Utils.findInTree(res, x => x?.className?.includes('usernameFont'), {
+                walkable: ['props', 'children']
+            });
+            if (!usernameElement) return;
             
-            const isSpeaking = thisObject?.props?.speaking;
+            const isSpeaking = props?.speaking;
             const color = member.colorString;
             
-            target.props.style = { 
+            usernameElement.style = { 
                 color: this.settings.speakingIndicator ? (isSpeaking ? color : `${color}90`) : color,
                 backfaceVisibility: "hidden" 
             };
