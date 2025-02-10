@@ -3,7 +3,7 @@
 * @author DaddyBoard
 * @authorId 241334335884492810
 * @version 1.0.0
-* @description Show in-app notifications for anything you would hear a ping for.
+* @description View the members of roles in a popout.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
@@ -38,7 +38,8 @@ module.exports = class ViewRoleMembers {
     patchRoleMention() {
         const RoleMention = BdApi.Webpack.getModule(Webpack.Filters.byStrings(".wrapper]:!0,interactive:"), { defaultExport: false });       
         RoleMention.Z.displayName = "ViewRoleMembersRoleMention";
-        Patcher.before("ViewRoleMembers-RoleMention", RoleMention, "Z", (_, [props]) => {        
+        Patcher.before("ViewRoleMembers-RoleMention", RoleMention, "Z", (_, [props]) => {    
+            if (!props?.className.includes("role")) return;
     
             props.onClick = (e) => {
                 const guildId = BdApi.Webpack.getStore("SelectedGuildStore").getGuildId();
