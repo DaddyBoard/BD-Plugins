@@ -12,6 +12,7 @@ A remake of the popular RoleMembers plugin (Credits to Zerebos for the original 
 - Left click on a role mention to view all members of a role. This works in both sent messages and text editor.
 - Copy role ID to clipboard by holding CTRL when clicking on a role mention. This works in both sent messages and text editor.
 - Left click on a member in the role popout to open their profile, or CTRL + Left click to copy their ID to clipboard.
+![](https://github.com/DaddyBoard/BD-Plugins/blob/main/ViewRoleMembers/gif.gif)
 
 ## 🤝 Contributing
 
