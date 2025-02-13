@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 7.4.2
+ * @version 7.4.3
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -35,13 +35,10 @@ const ChannelAckModule = (() => {
 const config = {
     changelog: [
         {
-            title: "7.4.2 Fixed",
-            type: "fixed",
+            title: "7.4.3",
+            type: "added",
             items: [
-                "The recent discord update minorly broke a few things, this update fixes the issues.",
-                "Fixed spoilered text not being visible in notifications.",
-                "Fixed gifs taking up max height in notifications.",
-                "Unrelated to discord breakages, but made the forwarded text font size the same as the dynamic scaling font size. (In other words, more consistent looking notifications)"
+                "Notifications will no longer appear from ignored users. Thank you @TheLazySquid for pointing this out."
             ]
         }
     ],
@@ -643,6 +640,10 @@ module.exports = class PingNotification {
 
     shouldNotify(message, channel, currentUser) {
         if (this.settings.hideDND && PresenceStore.getStatus(currentUser.id) === "dnd") {
+            return false;
+        }
+
+        if (RelationshipStore.isIgnored(message.author.id)) {
             return false;
         }
 
