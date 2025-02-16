@@ -38,24 +38,24 @@ module.exports = class ViewRoleMembers {
     patchRoleMention() {
         const RoleMention = BdApi.Webpack.getModule(Webpack.Filters.byStrings(".wrapper]:!0,interactive:"), { defaultExport: false });       
         RoleMention.Z.displayName = "ViewRoleMembersRoleMention";
-        Patcher.before("ViewRoleMembers-RoleMention", RoleMention, "Z", (_, [props]) => {    
-            if (!props?.className.includes("role")) return;
-    
-            props.onClick = (e) => {
-                const guildId = BdApi.Webpack.getStore("SelectedGuildStore").getGuildId();
-                const guildName = BdApi.Webpack.getStore("GuildStore").getGuild(guildId)?.name;
-                const roles = this.getRoles({ id: guildId });
-                const name = e.target.textContent.slice(1);
-                const role = Object.values(roles).find(r => r.name === name);
+        Patcher.before("ViewRoleMembers-RoleMention", RoleMention, "Z", (_, [props]) => { 
+            if (props?.className?.includes("role") || (typeof props?.children[1] === "string" && props?.children[1]?.includes("@"))) {
+                props.onClick = (e) => {
+                    const guildId = BdApi.Webpack.getStore("SelectedGuildStore").getGuildId();
+                    const guildName = BdApi.Webpack.getStore("GuildStore").getGuild(guildId)?.name;
+                    const roles = this.getRoles({ id: guildId });
+                    const name = e.target.textContent.slice(1);
+                    const role = Object.values(roles).find(r => r.name === name);
 
-                if (e.ctrlKey) {
-                    DiscordNative.clipboard.copy(role.id);
-                    BdApi.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
-                    return;
-                }
-                
-                this.showRolePopout(guildId, guildName, role.id, role.name);
-            };
+                    if (e.ctrlKey) {
+                        DiscordNative.clipboard.copy(role.id);
+                        BdApi.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
+                        return;
+                    }
+                    
+                    this.showRolePopout(guildId, guildName, role.id, role.name);
+                };
+            }
         });
     }
 
