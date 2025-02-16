@@ -10,6 +10,7 @@
 const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM} = BdApi;
 const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
 const MessageStore = Webpack.getStore("MessageStore");
+const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const ChannelStore = Webpack.getStore("ChannelStore");
 
 module.exports = class PeekMessageLinks {
@@ -91,7 +92,6 @@ module.exports = class PeekMessageLinks {
             }
         `);
 
-        const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
         const channel = ChannelStore.getChannel(message.channel_id);
 
         const PopupComponent = () => {
