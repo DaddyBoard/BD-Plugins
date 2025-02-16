@@ -88,7 +88,7 @@ module.exports = class PeekMessageLinks {
 
         const style = document.createElement('style');
         style.textContent = `
-            .peek-message-popup .buttonContainer_ {
+            .peek-message-popup [class*=buttonContainer_] {
                 display: none !important;
             }
         `;
@@ -98,10 +98,18 @@ module.exports = class PeekMessageLinks {
         const channel = ChannelStore.getChannel(message.channel_id);
 
         const PopupComponent = () => {
+            const maxHeight = 300;
+            const buffer = 40;
+            const spaceAbove = targetRect.top;
+            const showBelow = spaceAbove < (maxHeight + buffer);
+
             return React.createElement('div', {
                 style: {
                     position: 'fixed',
-                    bottom: `${window.innerHeight - targetRect.top + 10}px`,
+                    ...(showBelow
+                        ? { top: `${targetRect.bottom + 10}px` }
+                        : { bottom: `${window.innerHeight - targetRect.top + 10}px` }
+                    ),
                     left: `${targetRect.left}px`,
                     backgroundColor: 'var(--background-primary)',
                     borderRadius: '8px',
@@ -110,7 +118,7 @@ module.exports = class PeekMessageLinks {
                     maxHeight: '300px',
                     overflowY: 'scroll',
                     boxShadow: 'var(--elevation-high)',
-                    zIndex: 1,
+                    zIndex: 100,
                     opacity: 1,
                     border: '1px solid var(--background-tertiary)',
                     msOverflowStyle: 'none',
