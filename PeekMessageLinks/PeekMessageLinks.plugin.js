@@ -7,11 +7,10 @@
 * @invite ggNWGDV7e2
 */
 
-const { Webpack, React, Patcher, ReactUtils, Utils, DOM } = BdApi;
-const MessageActions = BdApi.Webpack.getByKeys("fetchMessage", "deleteMessage");
-const ReactDOM = BdApi.ReactDOM;
-const MessageStore = BdApi.Webpack.getStore("MessageStore");
-const ChannelStore = BdApi.Webpack.getStore("ChannelStore");
+const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM} = BdApi;
+const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
+const MessageStore = Webpack.getStore("MessageStore");
+const ChannelStore = Webpack.getStore("ChannelStore");
 
 module.exports = class PeekMessageLinks {
     constructor() {
@@ -23,12 +22,12 @@ module.exports = class PeekMessageLinks {
     }
 
     stop() {
-        BdApi.Patcher.unpatchAll("PeekMessageLinks-ChannelMentionBubble");
+        Patcher.unpatchAll("PeekMessageLinks-ChannelMentionBubble");
         this.removeAllPopups();
     }
 
     patchChannelMention() {
-        const ChannelMentionBubble = BdApi.Webpack.getModule(m => m.defaultRules && m.parse).defaultRules.channelMention;       
+        const ChannelMentionBubble = Webpack.getModule(m => m.defaultRules && m.parse).defaultRules.channelMention;       
         Patcher.after("PeekMessageLinks-ChannelMentionBubble", ChannelMentionBubble, "react", (_, [props], res) => {
             
             const originalClick = res.props.onClick;
@@ -86,15 +85,13 @@ module.exports = class PeekMessageLinks {
         popupElement.className = 'peek-message-popup';
         document.body.appendChild(popupElement);
 
-        const style = document.createElement('style');
-        style.textContent = `
+        DOM.addStyle('peek-message-popup-style', `
             .peek-message-popup [class*=buttonContainer_] {
                 display: none !important;
             }
-        `;
-        document.head.appendChild(style);
+        `);
 
-        const Message = BdApi.Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
+        const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
         const channel = ChannelStore.getChannel(message.channel_id);
 
         const PopupComponent = () => {
@@ -162,5 +159,6 @@ module.exports = class PeekMessageLinks {
                 popup.remove();
             }
         });
+        DOM.removeStyle('peek-message-popup-style');
     }
 }
