@@ -42,20 +42,16 @@ module.exports = class PeekMessageLinks {
 
                 const targetElement = e.currentTarget;
                 if (!message) {
-                    const cachedMessage = this.messageCache.get(props.messageId);
-                    if (cachedMessage) {
-                        message = cachedMessage;
-                    } else {
-                        try {
-                            message = await MessageActions.fetchMessage({
-                                channelId: props.channelId,
-                                messageId: props.messageId
-                            });
-                            this.messageCache.set(props.messageId, message);
-                        } catch (error) {
-                            if (originalClick) originalClick(e);
-                            return;
-                        }
+                    try {
+                        const messagePromise = this.messageCache.get(props.messageId) || MessageActions.fetchMessage({
+                            channelId: props.channelId,
+                            messageId: props.messageId
+                        });
+                        this.messageCache.set(props.messageId, messagePromise);
+                        message = await messagePromise;
+                    } catch (error) {
+                        if (originalClick) originalClick(e);
+                        return;
                     }
                 }
 
