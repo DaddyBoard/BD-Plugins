@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.1
+* @version 1.2.2
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -9,7 +9,7 @@
 
 const { Webpack, React, Patcher, ReactUtils, Utils } = BdApi;
 const getStore = Webpack.getStore;
-const VoiceUser = Webpack.getBySource("iconPriortySpeakerSpeaking", "avatarContainer");
+const VoiceUser = Webpack.getBySource("iconPriortySpeakerSpeaking", "avatarContainer", "getAvatarURL")
 const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
@@ -24,10 +24,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "v1.2.1",
+            "title": "v1.2.2",
             "type": "fixed",
             "items": [
-                "Fixed voice users causing crashing (thanks discord for constantly breaking stuff)"
+                "Minor change from discord broke voice users coloring, this has been fixed."
             ]
         }
     ],
@@ -290,6 +290,7 @@ module.exports = class MoreRoleColors {
 
     patchVoiceUsers() {
         Patcher.after("MoreRoleColors-voiceUsers", VoiceUser, "ZP", (_, [props], res) => {
+            VoiceUser.ZP.displayName = "MoreRoleColorsVoiceUser";
             if (!res?.props) return;
             
             const member = GuildMemberStore.getMember(SelectedGuildStore.getGuildId(), props?.user?.id);
