@@ -12,6 +12,7 @@ const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
 const MessageStore = Webpack.getStore("MessageStore");
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const ChannelStore = Webpack.getStore("ChannelStore");
+const Preloader = Webpack.getByKeys("preload");
 
 module.exports = class PeekMessageLinks {
     constructor() {
@@ -32,7 +33,6 @@ module.exports = class PeekMessageLinks {
         Patcher.after("PeekMessageLinks-ChannelMentionBubble", ChannelMentionBubble, "react", (_, [props], res) => {
             if (!props.messageId) return;
             if (props.content[0].channelType == "10000") {
-                const Preloader = BdApi.Webpack.getByKeys("preload");
                 Preloader.preload(props.guildId, props.channelId);
             }
             
