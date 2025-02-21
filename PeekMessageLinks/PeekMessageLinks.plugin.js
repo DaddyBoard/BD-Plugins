@@ -31,6 +31,10 @@ module.exports = class PeekMessageLinks {
         const ChannelMentionBubble = Webpack.getModule(m => m.defaultRules && m.parse).defaultRules.channelMention;       
         Patcher.after("PeekMessageLinks-ChannelMentionBubble", ChannelMentionBubble, "react", (_, [props], res) => {
             if (!props.messageId) return;
+            if (props.content[0].channelType == "10000") {
+                const Preloader = BdApi.Webpack.getByKeys("preload");
+                Preloader.preload(props.guildId, props.channelId);
+            }
             
             const originalClick = res.props.onClick;
             res.props.onClick = async (e) => {
