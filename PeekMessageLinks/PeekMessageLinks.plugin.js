@@ -30,6 +30,7 @@ module.exports = class PeekMessageLinks {
     patchChannelMention() {
         const ChannelMentionBubble = Webpack.getModule(m => m.defaultRules && m.parse).defaultRules.channelMention;       
         Patcher.after("PeekMessageLinks-ChannelMentionBubble", ChannelMentionBubble, "react", (_, [props], res) => {
+            if (!props.messageId) return;
             
             const originalClick = res.props.onClick;
             res.props.onClick = async (e) => {
@@ -59,7 +60,7 @@ module.exports = class PeekMessageLinks {
                 const popup = this.showMessagePopup(message, rect);
                 
                 const closePopup = (e) => {
-                    if (!popup.contains(e.target)) {
+                    if (popup && document.body.contains(popup) && !popup.contains(e.target)) {
                         document.removeEventListener('click', closePopup);
                         ReactDOM.unmountComponentAtNode(popup);
                         popup.remove();
