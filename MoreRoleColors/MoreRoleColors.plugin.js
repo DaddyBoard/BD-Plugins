@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.2
+* @version 1.2.3
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -24,10 +24,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "v1.2.2",
+            "title": "v1.2.3",
             "type": "fixed",
             "items": [
-                "Minor change from discord broke voice users coloring, this has been fixed."
+                "Minor change from discord broke Account Area coloring, this has been fixed."
             ]
         }
     ],
@@ -414,9 +414,9 @@ module.exports = class MoreRoleColors {
                 return;
             }
 
-            const { renderNameTag } = owner.constructor.prototype;
-            owner.constructor.prototype.renderNameTag = function() {
-                const res = renderNameTag.apply(this, arguments);
+            const renderNameTag = owner.renderNameTag;
+            owner.renderNameTag = function() {
+                const res = renderNameTag.call(this);
                 const type = res.props.children[0].props.children.type;
 
                 if (type.__MoreRoleColors) return res;
@@ -444,10 +444,10 @@ module.exports = class MoreRoleColors {
 
                 res.props.children[0].props.children.type = component;
                 return res;
-            }
+            }.bind(owner);
 
             this._unpatchAccountArea = () => {
-                owner.constructor.prototype.renderNameTag = renderNameTag;
+                owner.renderNameTag = renderNameTag;
             };
             owner.forceUpdate();
         };
