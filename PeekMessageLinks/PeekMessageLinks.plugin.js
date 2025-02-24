@@ -2,7 +2,7 @@
 * @name PeekMessageLinks
 * @author DaddyBoard
 * @version 1.0.0
-* @description Peek message links
+* @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
@@ -13,13 +13,108 @@ const MessageStore = Webpack.getStore("MessageStore");
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const ChannelStore = Webpack.getStore("ChannelStore");
 const Preloader = Webpack.getByKeys("preload");
+const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
+const UserStore = Webpack.getStore("UserStore");
+const CurrentUser = UserStore.getCurrentUser();
+
+const config = {
+    changelog: [
+        {
+            "title": "Initial Release - how does it work?",
+            "type": "added",
+            "items": [
+                "Depending on how you configure the settings, when you click on a message link, a popup will appear with the message content.",
+                "By default, normal clicking will open the popup, shift clicking will navigate to the message.",
+                "Please do go ahead and configure the settings to your liking! \n\nI do plan on adding other ways to show the message content, such as embedding it directly into the chat like a website link would do, but that will be for later."
+            ]
+        }
+    ],
+    settings: [
+        {
+            "type": "dropdown",
+            "id": "onClick",
+            "name": "On Click Behavior",
+            "note": "Select what happens when clicking a message link",
+            "value": BdApi.Data.load('PeekMessageLinks', 'settings')?.onClick ?? "popup",
+            "options": [
+                { label: "Show in popup", value: "popup" },
+                { label: "Navigate to message", value: "navigate" },
+                { label: "Do nothing", value: "none" }
+            ]
+        },
+        {
+            "type": "dropdown",
+            "id": "onShiftClick",
+            "name": "On Shift + Click Behavior",
+            "note": "Select what happens when Shift + clicking a message link",
+            "value": BdApi.Data.load('PeekMessageLinks', 'settings')?.onShiftClick ?? "navigate",
+            "options": [
+                { label: "Show in popup", value: "popup" },
+                { label: "Navigate to message", value: "navigate" },
+                { label: "Do nothing", value: "none" }
+            ]
+        },
+        {
+            "type": "dropdown",
+            "id": "onCtrlClick",
+            "name": "On Control + Click Behavior",
+            "note": "Select what happens when Control + clicking a message link",
+            "value": BdApi.Data.load('PeekMessageLinks', 'settings')?.onCtrlClick ?? "none",
+            "options": [
+                { label: "Show in popup", value: "popup" },
+                { label: "Navigate to message", value: "navigate" },
+                { label: "Do nothing", value: "none" }
+            ]
+        }
+    ]
+};
 
 module.exports = class PeekMessageLinks {
-    constructor() {
+    constructor(meta) {
+        this.meta = meta;
+        this.config = config;
         this.messageCache = new Map();
+        this.defaultSettings = {
+            onClick: "popup",
+            onShiftClick: "navigate",
+            onCtrlClick: "none"
+        };
+        this.settings = this.loadSettings();
+    }
+
+    loadSettings() {
+        return { ...this.defaultSettings, ...BdApi.Data.load('PeekMessageLinks', 'settings') };
+    }
+
+    saveSettings(newSettings) {
+        this.settings = newSettings;
+        BdApi.Data.save('PeekMessageLinks', 'settings', this.settings);
+    }
+
+    getSettingsPanel() {
+        config.settings.forEach(setting => {
+            setting.value = this.settings[setting.id];
+        });
+
+        return BdApi.UI.buildSettingsPanel({
+            settings: config.settings,
+            onChange: (category, id, value) => {
+                const newSettings = { ...this.settings, [id]: value };
+                this.saveSettings(newSettings);
+            }
+        });
     }
 
     start() {
+        const lastVersion = BdApi.Data.load('PeekMessageLinks', 'lastVersion');
+        if (lastVersion !== this.meta.version) {
+            BdApi.UI.showChangelogModal({
+                title: this.meta.name,
+                subtitle: this.meta.version,
+                changes: config.changelog
+            });
+            BdApi.Data.save('PeekMessageLinks', 'lastVersion', this.meta.version);
+        }
         this.patchChannelMention();
     }
 
@@ -38,14 +133,19 @@ module.exports = class PeekMessageLinks {
             
             const originalClick = res.props.onClick;
             res.props.onClick = async (e) => {
-                let message = MessageStore.getMessage(props.channelId, props.messageId);
-                
-                if (e.shiftKey) {
+                let action = this.settings.onClick;
+                if (e.shiftKey) action = this.settings.onShiftClick;
+                if (e.ctrlKey) action = this.settings.onCtrlClick;
+
+                if (action === "none") return;
+                if (action === "navigate") {
                     if (originalClick) originalClick(e);
                     return;
                 }
 
+                let message = MessageStore.getMessage(props.channelId, props.messageId);
                 const targetElement = e.currentTarget;
+
                 if (!message) {
                     try {
                         const messagePromise = this.messageCache.get(props.messageId) || MessageActions.fetchMessage({
@@ -54,26 +154,38 @@ module.exports = class PeekMessageLinks {
                         });
                         this.messageCache.set(props.messageId, messagePromise);
                         message = await messagePromise;
+
+                        if (message.id !== props.messageId) {
+                            message = new MessageConstructor({
+                                id: props.messageId,
+                                flags: 64,
+                                content: "This message has likely been deleted as the returned message ID does not match that of the message link. If you attempt to navigate to the message, you will be redirected to the closest message.",
+                                channel_id: props.channelId,
+                                author: CurrentUser,
+                            });
+                        }
                     } catch (error) {
                         if (originalClick) originalClick(e);
                         return;
                     }
                 }
 
-                const rect = targetElement.getBoundingClientRect();
-                const popup = this.showMessagePopup(message, rect);
-                
-                const closePopup = (e) => {
-                    if (popup && document.body.contains(popup) && !popup.contains(e.target)) {
-                        document.removeEventListener('click', closePopup);
-                        ReactDOM.unmountComponentAtNode(popup);
-                        popup.remove();
-                    }
-                };
-                
-                setTimeout(() => {
-                    document.addEventListener('click', closePopup);
-                }, 0);
+                if (action === "popup") {
+                    const rect = targetElement.getBoundingClientRect();
+                    const popup = this.showMessagePopup(message, rect);
+                    
+                    const closePopup = (e) => {
+                        if (popup && document.body.contains(popup) && !popup.contains(e.target)) {
+                            document.removeEventListener('click', closePopup);
+                            ReactDOM.unmountComponentAtNode(popup);
+                            popup.remove();
+                        }
+                    };
+                    
+                    setTimeout(() => {
+                        document.addEventListener('click', closePopup);
+                    }, 0);
+                }
             };
         });
     }
