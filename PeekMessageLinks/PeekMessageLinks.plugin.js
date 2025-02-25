@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.0.0
+* @version 1.0.1
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -15,7 +15,6 @@ const ChannelStore = Webpack.getStore("ChannelStore");
 const Preloader = Webpack.getByKeys("preload");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
 const UserStore = Webpack.getStore("UserStore");
-const CurrentUser = UserStore.getCurrentUser();
 
 const config = {
     changelog: [
@@ -161,7 +160,7 @@ module.exports = class PeekMessageLinks {
                                 flags: 64,
                                 content: "This message has likely been deleted as the returned message ID does not match that of the message link. If you attempt to navigate to the message, you will be redirected to the closest message.",
                                 channel_id: props.channelId,
-                                author: CurrentUser,
+                                author: UserStore.getCurrentUser(),
                             });
                         }
                     } catch (error) {
