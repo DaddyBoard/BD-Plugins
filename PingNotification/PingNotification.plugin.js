@@ -420,9 +420,8 @@ module.exports = class PingNotification {
 
 
     css = `
-
         .ping-notification {
-            background-color: rgba(30, 31, 34, 0.95);
+            background-color: var(--background-secondary, rgba(30, 31, 34, 0.95));
             color: var(--text-normal);
             border-radius: 12px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 1px rgba(255, 255, 255, 0.1);
@@ -473,6 +472,7 @@ module.exports = class PingNotification {
             cursor: pointer;
             position: relative;
             color: var(--text-normal);
+            background-color: var(--background-secondary, rgba(30, 31, 34, 0.95));
         }
         .ping-notification-header {
             display: flex;
@@ -496,7 +496,7 @@ module.exports = class PingNotification {
         .ping-notification-close {
             cursor: pointer;
             font-size: 18px;
-            padding: 0 4px;
+            padding: 4px;
         }
         .ping-notification-body {
             font-size: 15px;
@@ -1170,7 +1170,7 @@ module.exports = class PingNotification {
                 maxHeight: `${settings.maxHeight}px`,
                 display: 'flex',
                 flexDirection: 'column',
-                backgroundColor: 'rgba(30, 31, 34, 0.95)',
+                backgroundColor: 'var(--background-secondary, rgba(30, 31, 34, 0.95))',
                 backdropFilter: 'blur(10px)',
                 borderRadius: '12px',
                 boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 1px rgba(255, 255, 255, 0.1)',
@@ -1232,12 +1232,12 @@ module.exports = class PingNotification {
                         alignItems: 'center',
                         justifyContent: 'center',
                         borderRadius: '50%',
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        backgroundColor: 'var(--divider-subtle, rgba(255, 255, 255, 0.1))',
                         color: 'var(--interactive-normal)',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                         '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            backgroundColor: 'var(--divider-strong, rgba(255, 255, 255, 0.2))',
                             color: 'var(--interactive-hover)'
                         }
                     }
@@ -1472,7 +1472,7 @@ module.exports = class PingNotification {
                     left: 0,
                     height: '4px',
                     width: '100%',
-                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    backgroundColor: 'var(--divider-subtle, rgba(0, 0, 0, 0.2))',
                 }
             }),
             React.createElement('div', { 
@@ -1496,7 +1496,7 @@ module.exports = class PingNotification {
                     color: progressColorString,
                     transition: 'color 0.5s ease',
                     fontWeight: 'bold',
-                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                    backgroundColor: 'var(--divider-subtle, rgba(0, 0, 0, 0.4))',
                     padding: '2px 6px',
                     borderRadius: '10px',
                     display: settings.showTimer ? 'block' : 'none'
