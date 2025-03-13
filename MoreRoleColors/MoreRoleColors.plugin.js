@@ -364,11 +364,24 @@ module.exports = class MoreRoleColors {
             const guildId = (() => {
                 if (!BdApi.Plugins.isEnabled("PingNotification")) return SelectedGuildStore.getGuildId();
                 
-                const notificationParent = document.querySelector('.ping-notification-content');
-                if (notificationParent) {
-                    const channel = ChannelStore.getChannel(props.channelId);
-                    return channel?.guild_id;
+                let element = document.activeElement;
+                while (element && !element.classList.contains('ping-notification')) {
+                    element = element.parentElement;
                 }
+                
+                if (element) {
+                    const channelId = element.getAttribute('data-channel-id');
+                    if (channelId) {
+                        const channel = ChannelStore.getChannel(channelId);
+                        if (channel?.guild_id) return channel.guild_id;
+                    }
+                }
+                
+                if (props.channelId) {
+                    const channel = ChannelStore.getChannel(props.channelId);
+                    if (channel?.guild_id) return channel.guild_id;
+                }
+                
                 return SelectedGuildStore.getGuildId();
             })();
 
