@@ -53,8 +53,9 @@ const config = {
             items: [
                 "A FULL rewrite of the plugin to render notifications natively, improving reliability and fixing minor issues.",
                 "Replaced all styling with default Discord variables for better theme compatibility. Reach out for Custom CSS if needed.",
-                "+ Added an option to hide the orange border on mentions.",
                 "Unironically reduced API calls—down by 99.9%.",
+                "+ Added an option to hide the orange border on mentions.",
+                "+ Added new option to close notification on right click.",
                 "...finally fixed the oval close button, sorry lol!"
             ]
         },
