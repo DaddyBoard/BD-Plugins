@@ -905,8 +905,8 @@ module.exports = class PingNotification {
             testChannel = this.testNotificationData.channel;
             testMessage = this.testNotificationData.message;
         } else {
-            const channelIds = BdApi.Webpack.getStore("ChannelStore").getChannelIds();
-            
+            const channelIds = ChannelStore.getChannelIds();
+
             for (const channelId of channelIds) {
                 const channel = ChannelStore.getChannel(channelId);
                 if (channel) {
