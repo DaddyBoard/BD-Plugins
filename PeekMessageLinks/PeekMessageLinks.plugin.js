@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.0.1
+* @version 1.1.0
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -15,16 +15,33 @@ const ChannelStore = Webpack.getStore("ChannelStore");
 const Preloader = Webpack.getByKeys("preload");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
 const UserStore = Webpack.getStore("UserStore");
+const Dispatcher = Webpack.getByKeys("subscribe", "dispatch");
+const ReferencedMessageStore = Webpack.getStore("ReferencedMessageStore");
+const updateMessageReferenceStore = (()=>{
+    function getActionHandler(){
+        const nodes = Dispatcher._actionHandlers._dependencyGraph.nodes;
+        const storeHandlers = Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
+        return storeHandlers.actionHandler["CREATE_PENDING_REPLY"];
+    }
+    const target = getActionHandler();
+    return (message) => target({message});
+})();
+const ChannelConstructor = Webpack.getModule(Webpack.Filters.byPrototypeKeys("addCachedMessages"));
 
 const config = {
     changelog: [
         {
-            "title": "Initial Release - how does it work?",
+            "title": "1.1.0",
             "type": "added",
             "items": [
-                "Depending on how you configure the settings, when you click on a message link, a popup will appear with the message content.",
-                "By default, normal clicking will open the popup, shift clicking will navigate to the message.",
-                "Please do go ahead and configure the settings to your liking! \n\nI do plan on adding other ways to show the message content, such as embedding it directly into the chat like a website link would do, but that will be for later."
+                "Added a new setting to control the behavior when hovering over a message link. Thanks @trumetheus for the suggestion.",
+            ]
+        },
+        {
+            "title": "Reworked",
+            "type": "fixed",
+            "items": [
+                "Removed custom caching logic and moved to saving fetched messages in the MessageStore.",
             ]
         }
     ],
@@ -64,6 +81,17 @@ const config = {
                 { label: "Navigate to message", value: "navigate" },
                 { label: "Do nothing", value: "none" }
             ]
+        },
+        {
+            "type": "dropdown",
+            "id": "onHover",
+            "name": "On Hover Behavior",
+            "note": "Select what happens when hovering over a message link",
+            "value": BdApi.Data.load('PeekMessageLinks', 'settings')?.onHover ?? "none",
+            "options": [
+                { label: "Show in popup", value: "popup" },
+                { label: "Do nothing", value: "none" }
+            ]
         }
     ]
 };
@@ -72,13 +100,14 @@ module.exports = class PeekMessageLinks {
     constructor(meta) {
         this.meta = meta;
         this.config = config;
-        this.messageCache = new Map();
         this.defaultSettings = {
             onClick: "popup",
             onShiftClick: "navigate",
-            onCtrlClick: "none"
+            onCtrlClick: "none",
+            onHover: "none"
         };
         this.settings = this.loadSettings();
+        this.hoverPopupTimeout = null;
     }
 
     loadSettings() {
@@ -136,57 +165,119 @@ module.exports = class PeekMessageLinks {
                 if (e.shiftKey) action = this.settings.onShiftClick;
                 if (e.ctrlKey) action = this.settings.onCtrlClick;
 
-                if (action === "none") return;
+                if (this.hoverPopupTimeout) {
+                    clearTimeout(this.hoverPopupTimeout);
+                    this.hoverPopupTimeout = null;
+                }
+                
                 if (action === "navigate") {
-                    if (originalClick) originalClick(e);
+                    this.removeAllPopups();
+                }
+                
+                const targetElement = e.currentTarget;
+                
+                if (action === "navigate" && originalClick) {
+                    originalClick(e);
                     return;
                 }
+                
+                this.handleAction(action, props, targetElement, originalClick, e);
+            };
 
-                let message = MessageStore.getMessage(props.channelId, props.messageId);
+            res.props.onMouseEnter = async (e) => {
+                const action = this.settings.onHover;
+                if (action === "none") return;
+
                 const targetElement = e.currentTarget;
-
-                if (!message) {
-                    try {
-                        const messagePromise = this.messageCache.get(props.messageId) || MessageActions.fetchMessage({
-                            channelId: props.channelId,
-                            messageId: props.messageId
-                        });
-                        this.messageCache.set(props.messageId, messagePromise);
-                        message = await messagePromise;
-
-                        if (message.id !== props.messageId) {
-                            message = new MessageConstructor({
-                                id: props.messageId,
-                                flags: 64,
-                                content: "This message has likely been deleted as the returned message ID does not match that of the message link. If you attempt to navigate to the message, you will be redirected to the closest message.",
-                                channel_id: props.channelId,
-                                author: UserStore.getCurrentUser(),
-                            });
-                        }
-                    } catch (error) {
-                        if (originalClick) originalClick(e);
-                        return;
-                    }
+                
+                if (this.popupCloseTimeout) {
+                    clearTimeout(this.popupCloseTimeout);
+                    this.popupCloseTimeout = null;
                 }
-
-                if (action === "popup") {
-                    const rect = targetElement.getBoundingClientRect();
-                    const popup = this.showMessagePopup(message, rect);
-                    
-                    const closePopup = (e) => {
-                        if (popup && document.body.contains(popup) && !popup.contains(e.target)) {
-                            document.removeEventListener('click', closePopup);
-                            ReactDOM.unmountComponentAtNode(popup);
-                            popup.remove();
-                        }
-                    };
-                    
-                    setTimeout(() => {
-                        document.addEventListener('click', closePopup);
-                    }, 0);
+                
+                this.hoverPopupTimeout = setTimeout(() => {
+                    this.handleAction(action, props, targetElement, originalClick, e);
+                    this.hoverPopupTimeout = null;
+                }, 200);
+            };
+            
+            res.props.onMouseLeave = (e) => {
+                if (this.hoverPopupTimeout) {
+                    clearTimeout(this.hoverPopupTimeout);
+                    this.hoverPopupTimeout = null;
+                }
+                
+                if (this.settings.onHover === "popup") {
+                    this.popupCloseTimeout = setTimeout(() => {
+                        this.removeAllPopups();
+                        this.popupCloseTimeout = null;
+                    }, 200);
                 }
             };
         });
+    }
+
+    async handleAction(action, props, targetElement, originalClick, event) {
+        if (action === "none") return;
+        console.log(props);
+        
+        let message = MessageStore.getMessage(props.channelId, props.messageId);
+
+        if (!message) {
+            try {
+                const messagePromise = MessageActions.fetchMessage({
+                    channelId: props.channelId,
+                    messageId: props.messageId
+                });
+                message = await messagePromise;
+                
+                ChannelConstructor.commit(ChannelConstructor.getOrCreate(props.channelId).merge([message]));
+
+                if (message.id !== props.messageId) {
+                    message = new MessageConstructor({
+                        id: props.messageId,
+                        flags: 64,
+                        content: "This message has likely been deleted as the returned message ID does not match that of the message link. If you attempt to navigate to the message, you will be redirected to the closest message.",
+                        channel_id: props.channelId,
+                        author: UserStore.getCurrentUser(),
+                    });
+                }
+            } catch (error) {
+                if (originalClick) originalClick(event);
+                return;
+            }
+        }
+        if (message.messageReference) {
+            if (ReferencedMessageStore.getMessageByReference(message.messageReference).state !== 0) {
+                let referencedMessage = MessageStore.getMessage(message.messageReference.channel_id, message.messageReference.message_id);
+
+                if (!referencedMessage) {
+
+                    referencedMessage = await MessageActions.fetchMessage({
+                        channelId: message.messageReference.channel_id,
+                        messageId: message.messageReference.message_id
+                    });
+                }
+                updateMessageReferenceStore(referencedMessage);
+            }
+        }
+
+        if (action === "popup") {
+            const rect = targetElement.getBoundingClientRect();
+            const popup = this.showMessagePopup(message, rect);
+            
+            const closePopup = (e) => {
+                if (popup && document.body.contains(popup) && !popup.contains(e.target)) {
+                    document.removeEventListener('click', closePopup);
+                    ReactDOM.unmountComponentAtNode(popup);
+                    popup.remove();
+                }
+            };
+            
+            setTimeout(() => {
+                document.addEventListener('click', closePopup);
+            }, 0);
+        }
     }
 
     showMessagePopup(message, targetRect) {
@@ -198,9 +289,28 @@ module.exports = class PeekMessageLinks {
         popupElement.className = 'peek-message-popup';
         document.body.appendChild(popupElement);
 
+        popupElement.addEventListener('mouseenter', () => {
+            if (this.popupCloseTimeout) {
+                clearTimeout(this.popupCloseTimeout);
+                this.popupCloseTimeout = null;
+            }
+        });
+        
+        popupElement.addEventListener('mouseleave', () => {
+            this.popupCloseTimeout = setTimeout(() => {
+                this.removeAllPopups();
+                this.popupCloseTimeout = null;
+            }, 200);
+        });
+
         DOM.addStyle('peek-message-popup-style', `
             .peek-message-popup [class*=buttonContainer_] {
                 display: none !important;
+            }
+
+            .peek-message-popup [class*="message__"][class*="selected_"]:not([class*="mentioned_"]),
+            .peek-message-popup [class*="message__"]:hover:not([class*="mentioned__"]) {
+                background: inherit !important;
             }
         `);
 
@@ -222,12 +332,12 @@ module.exports = class PeekMessageLinks {
                     left: `${targetRect.left}px`,
                     backgroundColor: 'var(--background-primary)',
                     borderRadius: '8px',
-                    padding: '16px',
+                    padding: '8px',
                     width: '460px',
                     maxHeight: '300px',
                     overflowY: 'scroll',
                     boxShadow: 'var(--elevation-high)',
-                    zIndex: 100,
+                    zIndex: 1001,
                     opacity: 1,
                     border: '1px solid var(--background-tertiary)',
                     msOverflowStyle: 'none',
