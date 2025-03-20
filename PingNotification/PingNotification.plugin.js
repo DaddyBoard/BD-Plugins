@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.0.0
+ * @version 8.0.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -47,6 +47,15 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 
 const config = {
     changelog: [
+        {
+            title: "8.0.1 - New Option, Tweaks and Fixes",
+            type: "added",
+            items: [
+                "Added a new option in `User Styling` to show `Server Profile` avatars instead of global avatars.",
+                "Fixed some sizing issues with replied messages. They will now display at 0.85x font-size.",
+                "Added css to hide the Spotify activity indicator icon from Skamt's SpotifyEnhance plugin. (There's not a lot of real estate on the notification, so it's not really viable to show it.)"
+            ]
+        },
         {
             title: "8.0.0 - Big Rewrite",
             type: "added",
@@ -218,6 +227,13 @@ const config = {
                     id: "useFriendNicknames",
                     name: "Use Friend Nicknames for DMs",
                     note: "Show your custom friend nicknames from DM messages",
+                    value: true
+                },
+                {
+                    type: "switch",
+                    id: "useServerProfilePictures",
+                    name: "Use Server Profile Pictures",
+                    note: "Show the Server Profile Picture instead of the users global avatar",
                     value: true
                 }
             ]
@@ -447,6 +463,7 @@ module.exports = class PingNotification {
             padding: 4px 8px;
             border-radius: 4px;
         }
+        
         .ping-notification-content.privacy-mode:hover .ping-notification-hover-text {
             opacity: 0;
         }
@@ -528,10 +545,16 @@ module.exports = class PingNotification {
         }
 
 
-        .ping-notification-content [class*="markup_"][class*="messageContent"],
-        .ping-notification-content [class*="markup_"],
+        .ping-notification-content [class*="contents_"] [class*="markup_"][class*="messageContent"],
+        .ping-notification-content [class*="contents_"] [class*="markup_"],
         .ping-notification-content [class*="scrollbarGhostHairline_"] {
             font-size: var(--ping-notification-content-font-size) !important;
+        }
+
+        .ping-notification [class*="repliedTextPreview_"] [class*="repliedTextContent_"],
+        .ping-notification [class*="username_"],
+        .ping-notification [class*="contents_"] [class*="message-content-"] {
+            font-size: calc(var(--ping-notification-content-font-size) * 0.85) !important;
         }
 
         .ping-notification-content small,
@@ -542,6 +565,10 @@ module.exports = class PingNotification {
         .ping-notification [class*="message__"][class*="selected_"]:not([class*="mentioned_"]),
         .ping-notification [class*="message__"]:hover:not([class*="mentioned__"]) {
             background: inherit !important;
+        }
+
+        .ping-notification [class*="spotifyActivityIndicatorIcon"] {
+            display: none !important;
         }
 
     `;
@@ -983,6 +1010,7 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
     
     const guild = channel.guild_id ? GuildStore.getGuild(channel.guild_id) : null;
     const member = guild ? GuildMemberStore.getMember(guild.id, message.author.id) : null;
+    const user = UserStore.getUser(message.author.id);
 
     const [isPaused, setIsPaused] = React.useState(false);
     
@@ -1068,10 +1096,13 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
     }, [settings.showNicknames, settings.useFriendNicknames, member?.nick, message.author.username, settings.usernameOrDisplayName, channel.guild_id]);
 
     const avatarUrl = React.useMemo(() => {
+        if (settings.useServerProfilePictures && channel.guild_id) {
+            return user.getAvatarURL(channel.guild_id) || message.author.avatar
+        }
         return message.author.avatar
             ? `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}.png?size=128`
             : `https://cdn.discordapp.com/embed/avatars/${parseInt(message.author.discriminator) % 5}.png`;
-    }, [message.author]);
+    }, [message.author, settings.useServerProfilePictures, channel.guild_id]);
 
     const handleSwipe = (e) => {
         const startX = e.touches ? e.touches[0].clientX : e.clientX;
