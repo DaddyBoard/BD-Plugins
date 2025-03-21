@@ -493,6 +493,7 @@ module.exports = class PingNotification {
             pointer-events: none !important;
         }
         .ping-notification [class*="hoverButtonGroup_"],
+        .ping-notification [class*="wrapper__"],
         .ping-notification [class*="codeActions_"],
         .ping-notification [class*="reactionBtn"] {
             display: none !important;
