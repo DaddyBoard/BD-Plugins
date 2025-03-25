@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.1.0
+* @version 1.1.1
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -31,17 +31,10 @@ const ChannelConstructor = Webpack.getModule(Webpack.Filters.byPrototypeKeys("ad
 const config = {
     changelog: [
         {
-            "title": "1.1.0",
-            "type": "added",
-            "items": [
-                "Added a new setting to control the behavior when hovering over a message link. Thanks @trumetheus for the suggestion.",
-            ]
-        },
-        {
-            "title": "Reworked",
+            "title": "1.1.1",
             "type": "fixed",
             "items": [
-                "Removed custom caching logic and moved to saving fetched messages in the MessageStore.",
+                "Fixed an issue on message links to very old messages making them appear randomly in the chat (out of chronological order).",
             ]
         }
     ],
@@ -231,7 +224,7 @@ module.exports = class PeekMessageLinks {
                 });
                 message = await messagePromise;
                 
-                ChannelConstructor.commit(ChannelConstructor.getOrCreate(props.channelId).merge([message]));
+                ChannelConstructor.commit(ChannelConstructor.getOrCreate(props.channelId).mergeDelta([message]));
 
                 if (message.id !== props.messageId) {
                     message = new MessageConstructor({
