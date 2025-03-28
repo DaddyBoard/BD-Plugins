@@ -1,33 +1,33 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.3
+* @version 1.2.4
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
 
 const { Webpack, React, Patcher, ReactUtils, Utils } = BdApi;
-const getStore = Webpack.getStore;
-const VoiceUser = Webpack.getBySource("iconPriortySpeakerSpeaking", "avatarContainer", "getAvatarURL")
+const { getStore, getByStrings, getBySource } = Webpack;
+const VoiceUser = getBySource("iconPriortySpeakerSpeaking", "avatarContainer", "getAvatarURL");
 const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
-const TypingModule = Webpack.getByStrings(".colors.INTERACTIVE_NORMAL).hex(),activeTextColor", { defaultExport: false });
-const MentionModule = Webpack.getByStrings(',"Unexpected missing user"),(0,', { defaultExport: false });
+const TypingModule = getByStrings(".colors.INTERACTIVE_NORMAL).hex(),activeTextColor", { defaultExport: false });
+const MentionModule = getByStrings(',"Unexpected missing user"),(0,', { defaultExport: false });
 const ChannelStore = getStore("ChannelStore");
-const UserStore = BdApi.Webpack.getStore("UserStore");
-const GuildStore = BdApi.Webpack.getStore("GuildStore");
+const UserStore = getStore("UserStore");
+const GuildStore = getStore("GuildStore");
 
 //types for changelog: added, fixed, improved, progress.
 const config = {
     banner: "",
     changelog: [
         {
-            "title": "v1.2.3",
+            "title": "v1.2.4",
             "type": "fixed",
             "items": [
-                "Minor change from discord broke Account Area coloring, this has been fixed."
+                "Minor change from discord broke Voice Channel coloring, this has been fixed."
             ]
         }
     ],
@@ -289,7 +289,7 @@ module.exports = class MoreRoleColors {
     }
 
     patchVoiceUsers() {
-        Patcher.after("MoreRoleColors-voiceUsers", VoiceUser, "ZP", (_, [props], res) => {
+        Patcher.after("MoreRoleColors-voiceUsers", VoiceUser.ZP, "render", (_, [props], res) => {
             VoiceUser.ZP.displayName = "MoreRoleColorsVoiceUser";
             if (!res?.props) return;
             
