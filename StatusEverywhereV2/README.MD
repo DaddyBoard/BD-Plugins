@@ -1,4 +1,5 @@
 # StatusEverywhereV2
+This is a remake of Strenchers StatusEverywhere, all credits for the original idea goes to him.
 
 ![GitHub stars](https://img.shields.io/github/stars/DaddyBoard/BD-Plugins?style=social)
 ![GitHub forks](https://img.shields.io/github/forks/DaddyBoard/BD-Plugins?style=social)
