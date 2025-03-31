@@ -32,10 +32,10 @@ const joinedElements = avatarElement1.userAvatar + " " + avatarElement2.avatar +
 const config = {
     changelog: [
         {
-            "title": "Example Example",
+            "title": "v1.0.0",
             "type": "added",
             "items": [
-                "Example changelog item"
+                "Initial release"
             ]
         }
     ],
