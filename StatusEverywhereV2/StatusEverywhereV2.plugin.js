@@ -243,7 +243,7 @@ module.exports = class StatusEverywhereV2 {
     }
     
     patchChatAvatars() {
-        Patcher.after("ChatAvatarSE", ChatAvatar, "ZP", (_, [props], res) => {
+        Patcher.after("ChatAvatarSE", ChatAvatar.ZP, "type", (_, [props], res) => {
             const {author, message, guildId} = props;
             const [show, setShow] = React.useState(false);
 
