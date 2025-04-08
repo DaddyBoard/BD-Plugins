@@ -27,15 +27,8 @@ const config = {
             "title": "1.2.6 Fixed",
             "type": "fixed",
             "items": [
-                "Fixed mention coloring."
-            ]
-        },
-        {
-            "title": "1.2.5 Fixed",
-            "type": "fixed",
-            "items": [
-                "Fixed role-header coloring.",
-                
+                "Fixed mention coloring.",
+                "Fixed role-header coloring(again...)"
             ]
         },
         {
@@ -553,7 +546,7 @@ module.exports = class MoreRoleColors {
     patchRoleHeaders() {
         const map = new WeakMap();
 
-        BdApi.Patcher.after("MoreRoleColors-roleHeaders", BdApi.Webpack.getBySource("getEnableHardwareAcceleration", "openGuildSubscriptionModal"), "Z", (that, [{ currentUser }], res) => {
+        BdApi.Patcher.after("MoreRoleColors-roleHeaders", BdApi.Webpack.getBySource("getEnableHardwareAcceleration", "colorRoleName", "getVoiceChannelId", "showMediaItems"), "Z", (that, [{ currentUser }], res) => {
             let newType = map.get(res.type);
             if (!newType) {
                 newType = new Proxy(res.type, {
