@@ -1,20 +1,20 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.5
+* @version 1.2.6
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
 
 const { Webpack, React, Patcher, ReactUtils, Utils } = BdApi;
-const { getStore, getByStrings, getBySource } = Webpack;
+const { getStore, getByStrings, getBySource, getWithKey } = Webpack;
 const VoiceUser = getBySource("iconPriortySpeakerSpeaking", "avatarContainer", "getAvatarURL");
 const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
 const TypingModule = getByStrings(".colors.INTERACTIVE_NORMAL).hex(),activeTextColor", { defaultExport: false });
-const MentionModule = getByStrings(',"Unexpected missing user"),(0,', { defaultExport: false });
+const [MentionModule, key] = getWithKey(Filters.byStrings('USER_MENTION',"getNickname", "inlinePreview"));
 const ChannelStore = getStore("ChannelStore");
 const UserStore = getStore("UserStore");
 const GuildStore = getStore("GuildStore");
@@ -24,10 +24,18 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "Fixed",
+            "title": "1.2.6 Fixed",
             "type": "fixed",
             "items": [
-                "Fixed role-header coloring."
+                "Fixed mention coloring."
+            ]
+        },
+        {
+            "title": "1.2.5 Fixed",
+            "type": "fixed",
+            "items": [
+                "Fixed role-header coloring.",
+                
             ]
         },
         {
@@ -365,7 +373,7 @@ module.exports = class MoreRoleColors {
     }
 
     patchMentions() {
-        Patcher.after("MoreRoleColors-mentions", MentionModule, "Z", (_, [props], res) => {
+        Patcher.after("MoreRoleColors-mentions", MentionModule, key, (_, [props], res) => {
             if (!props?.userId || !res?.props?.children?.props) return res;
 
             const guildId = (() => {

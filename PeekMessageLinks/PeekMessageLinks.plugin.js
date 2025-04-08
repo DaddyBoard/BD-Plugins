@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.1.1
+* @version 1.1.2
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -12,7 +12,6 @@ const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
 const MessageStore = Webpack.getStore("MessageStore");
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const ChannelStore = Webpack.getStore("ChannelStore");
-const Preloader = Webpack.getByKeys("preload");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
 const UserStore = Webpack.getStore("UserStore");
 const Dispatcher = Webpack.getByKeys("subscribe", "dispatch");
@@ -26,15 +25,15 @@ const updateMessageReferenceStore = (()=>{
     const target = getActionHandler();
     return (message) => target({message});
 })();
-const ChannelConstructor = Webpack.getModule(Webpack.Filters.byPrototypeKeys("addCachedMessages"));
+const loadThread = BdApi.Webpack.getModule(a => a.loadThread).loadThread;
 
 const config = {
     changelog: [
         {
-            "title": "1.1.1",
+            "title": "1.1.2",
             "type": "fixed",
             "items": [
-                "Fixed an issue on message links to very old messages making them appear randomly in the chat (out of chronological order).",
+                "Reverted to the previous caching method (internal memory cache). There was various placement issues with the store method.",
             ]
         }
     ],
@@ -93,6 +92,7 @@ module.exports = class PeekMessageLinks {
     constructor(meta) {
         this.meta = meta;
         this.config = config;
+        this.messageCache = new Map();
         this.defaultSettings = {
             onClick: "popup",
             onShiftClick: "navigate",
@@ -149,7 +149,7 @@ module.exports = class PeekMessageLinks {
         Patcher.after("PeekMessageLinks-ChannelMentionBubble", ChannelMentionBubble, "react", (_, [props], res) => {
             if (!props.messageId) return;
             if (props.content[0].channelType == "10000") {
-                Preloader.preload(props.guildId, props.channelId);
+                loadThread(props.channelId);
             }
             
             const originalClick = res.props.onClick;
@@ -212,19 +212,17 @@ module.exports = class PeekMessageLinks {
 
     async handleAction(action, props, targetElement, originalClick, event) {
         if (action === "none") return;
-        console.log(props);
-        
+                
         let message = MessageStore.getMessage(props.channelId, props.messageId);
 
         if (!message) {
             try {
-                const messagePromise = MessageActions.fetchMessage({
+                const messagePromise = this.messageCache.get(props.messageId) || MessageActions.fetchMessage({
                     channelId: props.channelId,
                     messageId: props.messageId
                 });
+                this.messageCache.set(props.messageId, messagePromise);
                 message = await messagePromise;
-                
-                ChannelConstructor.commit(ChannelConstructor.getOrCreate(props.channelId).mergeDelta([message]));
 
                 if (message.id !== props.messageId) {
                     message = new MessageConstructor({
@@ -308,6 +306,12 @@ module.exports = class PeekMessageLinks {
         `);
 
         const channel = ChannelStore.getChannel(message.channel_id);
+        console.log(message);
+        
+        if (!channel) {
+            console.log("No channel found");
+            return;
+        }
 
         const PopupComponent = () => {
             const maxHeight = 300;
