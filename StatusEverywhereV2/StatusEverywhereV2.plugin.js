@@ -15,7 +15,7 @@ const SelectedGuildStore = Webpack.getStore("SelectedGuildStore");
 
 const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
 const MemberAreaAvatar = Webpack.getModule((exp, m, id) => { if(exp?.type?.toString?.().includes("(d),_=i.useRef(!1),p")){ return true; }},{searchExports:true});
-const Popout = Webpack.getModule(Webpack.Filters.byKeys("Animation", "defaultProps"), { searchExports: true });
+const Popout = Webpack.getByStrings("Unsupported animation config:",{searchExports:true})
 const userPopout = Webpack.getByStrings('"SENDING"===', 'renderUserGuildPopout: channel should never be');
 const loaduser = Webpack.getByStrings("Invalid arguments", 'type:"popout"', ".getAvatarURL(void 0,80)");
 const loaduserArg = Webpack.getByStrings('searchParams.set("passthrough"', '.concat(location.protocol)', 'AVATAR_DECORATION_PRESETS', { searchExports: true });
