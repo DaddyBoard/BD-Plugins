@@ -1,21 +1,21 @@
 /**
-* @name ViewRoleMembers
+* @name RoleExplorer
 * @author DaddyBoard
 * @authorId 241334335884492810
 * @version 1.0.0
-* @description View the members of roles in a popout.
+* @description View the members of roles in a popout. Remake of RoleMembers by Zerebos.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
 
 const { Webpack, React, Patcher } = BdApi;
 
-module.exports = class ViewRoleMembers {
+module.exports = class RoleExplorer {
 
     start() {
         this.patchGuildContextMenu();
         this.patchRoleMention();
-        BdApi.DOM.addStyle("ViewRoleMembers", `
+        BdApi.DOM.addStyle("RoleExplorer", `
             .role-members-scroll::-webkit-scrollbar {
                 width: 8px;
             }
@@ -30,15 +30,15 @@ module.exports = class ViewRoleMembers {
     }
 
     stop() {
-        BdApi.Patcher.unpatchAll("ViewRoleMembers-RoleMention");
+        BdApi.Patcher.unpatchAll("RoleExplorer-RoleMention");
         this.contextMenuPatch?.();
-        BdApi.DOM.removeStyle("ViewRoleMembers");
+        BdApi.DOM.removeStyle("RoleExplorer");
     }
 
     patchRoleMention() {
         const RoleMention = BdApi.Webpack.getModule(Webpack.Filters.byStrings(".wrapper]:!0,interactive:"), { defaultExport: false });       
-        RoleMention.Z.displayName = "ViewRoleMembersRoleMention";
-        Patcher.after("ViewRoleMembers-RoleMention", RoleMention, "Z", (_, [props]) => { 
+        RoleMention.Z.displayName = "RoleExplorerRoleMention";
+        Patcher.after("RoleExplorer-RoleMention", RoleMention, "Z", (_, [props]) => { 
             
             if (props?.className?.includes("role") || (typeof props?.children[1] === "string" && props?.children[1]?.includes("@"))) {
                 props.onClick = (e) => {
@@ -91,7 +91,7 @@ module.exports = class ViewRoleMembers {
 
             const roleSubmenu = BdApi.ContextMenu.buildItem({
                 type: "submenu",
-                label: "View Role Members",
+                label: "Role Explorer",
                 items: items,
                 action: () => {
                     this.showRolePopout(guild.id, guild.name, null, null);
