@@ -8,7 +8,7 @@
 */
 
 const { Webpack, React, Patcher, ReactUtils, Utils } = BdApi;
-const { getStore, getByStrings, getBySource, getWithKey } = Webpack;
+const { getStore, getByStrings, getBySource, getWithKey, Filters } = Webpack;
 const VoiceUser = getBySource("iconPriortySpeakerSpeaking", "avatarContainer", "getAvatarURL");
 const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
