@@ -10,6 +10,14 @@
 
 const { Webpack, React, Patcher } = BdApi;
 
+
+const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
+const RoleMention = BdApi.Webpack.getModule(Webpack.Filters.byStrings(".wrapper]:!0,interactive:"), { defaultExport: false }); 
+const GuildStore = BdApi.Webpack.getStore("GuildStore");   
+const SelectedGuildStore = BdApi.Webpack.getStore("SelectedGuildStore");
+const UserStore = BdApi.Webpack.getStore("UserStore");
+const UserProfileModal = BdApi.Webpack.getByKeys('openUserProfileModal');
+
 module.exports = class RoleExplorer {
 
     start() {
@@ -36,21 +44,20 @@ module.exports = class RoleExplorer {
     }
 
     patchRoleMention() {
-        const RoleMention = BdApi.Webpack.getModule(Webpack.Filters.byStrings(".wrapper]:!0,interactive:"), { defaultExport: false });       
         RoleMention.Z.displayName = "RoleExplorerRoleMention";
         Patcher.after("RoleExplorer-RoleMention", RoleMention, "Z", (_, [props]) => { 
             
             if (props?.className?.includes("role") || (typeof props?.children[1] === "string" && props?.children[1]?.includes("@"))) {
                 props.onClick = (e) => {
-                    const guildId = BdApi.Webpack.getStore("SelectedGuildStore").getGuildId();
-                    const guildName = BdApi.Webpack.getStore("GuildStore").getGuild(guildId)?.name;
+                    const guildId = SelectedGuildStore.getGuildId();
+                    const guildName = GuildStore.getGuild(guildId)?.name;
                     const roles = this.getRoles({ id: guildId });
                     const name = e.target.textContent.slice(1);
                     const role = Object.values(roles).find(r => r.name === name);
 
                     if (e.ctrlKey) {
                         DiscordNative.clipboard.copy(role.id);
-                        BdApi.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
+                        BdApi.UI.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
                         return;
                     }
                     
@@ -66,7 +73,6 @@ module.exports = class RoleExplorer {
             if (!guild) return;
             const roles = this.getRoles(guild);
             if (!Object.keys(roles).length) return;
-            const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
             const members = GuildMemberStore.getMembers(guild.id);
             const items = Object.values(roles)
                 .sort((a, b) => b.position - a.position)
@@ -80,7 +86,7 @@ module.exports = class RoleExplorer {
                         action: (e) => {
                             if (e.ctrlKey) {
                                 DiscordNative.clipboard.copy(role.id);
-                                BdApi.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
+                                BdApi.UI.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
                                 BdApi.ContextMenu.close();
                             } else {
                                 this.showRolePopout(guild.id, guild.name, role.id, role.name);
@@ -105,14 +111,10 @@ module.exports = class RoleExplorer {
     }
 
     getRoles(guild) {
-        const GuildStore = BdApi.Webpack.getStore("GuildStore");
         return guild?.roles ?? GuildStore?.getRoles(guild?.id);
     }
 
-    showRolePopout(guildId, guildName, roleId, roleName) {
-        const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
-        const UserStore = BdApi.Webpack.getStore("UserStore");
-        const UserProfileModal = BdApi.Webpack.getByKeys('openUserProfileModal');
+    showRolePopout(guildId, guildName, roleId, roleName) {  
         const members = GuildMemberStore.getMembers(guildId);
         const roles = this.getRoles({ id: guildId });
         
@@ -219,14 +221,16 @@ module.exports = class RoleExplorer {
                             },
                             onMouseEnter: e => {
                                 e.currentTarget.style.backgroundColor = "var(--background-secondary-alt)";
+                                e.currentTarget.querySelector(".copy-icon").style.opacity = 1;
                             },
                             onMouseLeave: e => {
                                 e.currentTarget.style.backgroundColor = "var(--background-secondary)";
+                                e.currentTarget.querySelector(".copy-icon").style.opacity = 0;
                             },
                             onClick: (e) => {
                                 if (e.ctrlKey) {
                                     DiscordNative.clipboard.copy(role.id);
-                                    BdApi.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
+                                    BdApi.UI.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
                                     return;
                                 }
                                 handleRoleSelect(role);
@@ -252,7 +256,45 @@ module.exports = class RoleExplorer {
                                         fontSize: "12px"
                                     }
                                 }, `${role.memberCount} members`)
-                            ])
+                            ]),
+                            React.createElement("div", {
+                                className: "copy-icon",
+                                style: {
+                                    marginLeft: "8px",
+                                    cursor: "pointer",
+                                    padding: "4px",
+                                    borderRadius: "4px",
+                                    opacity: 0,
+                                    transition: "opacity 0.2s"
+                                },
+                                onClick: (e) => {
+                                    e.stopPropagation();
+                                    DiscordNative.clipboard.copy(role.id);
+                                    BdApi.UI.showToast(`Copied ${role.name}'s ID to clipboard`, { type: "success" });
+                                }
+                            }, React.createElement("svg", {
+                                width: "16",
+                                height: "16",
+                                viewBox: "0 0 24 24",
+                                fill: "none",
+                                xmlns: "http://www.w3.org/2000/svg",
+                                style: {
+                                    color: "var(--interactive-normal)"
+                                }
+                            }, [
+                                React.createElement("path", {
+                                    fill: "currentColor",
+                                    d: "M3 16a1 1 0 0 1-1-1v-5a8 8 0 0 1 8-8h5a1 1 0 0 1 1 1v.5a.5.5 0 0 1-.5.5H10a6 6 0 0 0-6 6v5.5a.5.5 0 0 1-.5.5H3Z"
+                                }),
+                                React.createElement("path", {
+                                    fill: "currentColor",
+                                    d: "M6 18a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-4h-3a5 5 0 0 1-5-5V6h-4a4 4 0 0 0-4 4v8Z"
+                                }),
+                                React.createElement("path", {
+                                    fill: "currentColor",
+                                    d: "M21.73 12a3 3 0 0 0-.6-.88l-4.25-4.24a3 3 0 0 0-.88-.61V9a3 3 0 0 0 3 3h2.73Z"
+                                })
+                            ]))
                         ])
                     ));
                 }
@@ -284,14 +326,16 @@ module.exports = class RoleExplorer {
                         },
                         onMouseEnter: e => {
                             e.currentTarget.style.backgroundColor = "var(--background-secondary-alt)";
+                            e.currentTarget.querySelector(".copy-icon").style.opacity = 1;
                         },
                         onMouseLeave: e => {
                             e.currentTarget.style.backgroundColor = "var(--background-secondary)";
+                            e.currentTarget.querySelector(".copy-icon").style.opacity = 0;
                         },
                         onClick: (e) => {
                             if (e.ctrlKey) {
                                 DiscordNative.clipboard.copy(member.id);
-                                BdApi.showToast(`Copied ${member.username}'s ID to clipboard`, { type: "success" });
+                                BdApi.UI.showToast(`Copied ${member.username}'s ID to clipboard`, { type: "success" });
                                 return;
                             }
                             UserProfileModal.openUserProfileModal({
@@ -313,7 +357,8 @@ module.exports = class RoleExplorer {
                         React.createElement("div", {
                             style: {
                                 display: "flex",
-                                flexDirection: "column"
+                                flexDirection: "column",
+                                flex: 1
                             }
                         }, [
                             React.createElement("span", {
@@ -329,7 +374,45 @@ module.exports = class RoleExplorer {
                                     fontSize: "12px"
                                 }
                             }, member.username)
-                        ])
+                        ]),
+                        React.createElement("div", {
+                            className: "copy-icon",
+                            style: {
+                                marginLeft: "8px",
+                                cursor: "pointer",
+                                padding: "4px",
+                                borderRadius: "4px",
+                                opacity: 0,
+                                transition: "opacity 0.2s"
+                            },
+                            onClick: (e) => {
+                                e.stopPropagation();
+                                DiscordNative.clipboard.copy(member.id);
+                                BdApi.UI.showToast(`Copied ${member.username}'s ID to clipboard`, { type: "success" });
+                            }
+                        }, React.createElement("svg", {
+                            width: "16",
+                            height: "16",
+                            viewBox: "0 0 24 24",
+                            fill: "none",
+                            xmlns: "http://www.w3.org/2000/svg",
+                            style: {
+                                color: "var(--interactive-normal)"
+                            }
+                        }, [
+                            React.createElement("path", {
+                                fill: "currentColor",
+                                d: "M3 16a1 1 0 0 1-1-1v-5a8 8 0 0 1 8-8h5a1 1 0 0 1 1 1v.5a.5.5 0 0 1-.5.5H10a6 6 0 0 0-6 6v5.5a.5.5 0 0 1-.5.5H3Z"
+                            }),
+                            React.createElement("path", {
+                                fill: "currentColor",
+                                d: "M6 18a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-4h-3a5 5 0 0 1-5-5V6h-4a4 4 0 0 0-4 4v8Z"
+                            }),
+                            React.createElement("path", {
+                                fill: "currentColor",
+                                d: "M21.73 12a3 3 0 0 0-.6-.88l-4.25-4.24a3 3 0 0 0-.88-.61V9a3 3 0 0 0 3 3h2.73Z"
+                            })
+                        ]))
                     ])
                 )));
             };
