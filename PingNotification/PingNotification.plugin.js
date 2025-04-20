@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.0.1
+ * @version 8.0.2
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -48,32 +48,11 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 const config = {
     changelog: [
         {
-            title: "8.0.1 - New Option, Tweaks and Fixes",
+            title: "8.0.2 - Fixed some issues",
             type: "added",
             items: [
-                "Added a new option in `User Styling` to show `Server Profile` avatars instead of global avatars.",
-                "Fixed some sizing issues with replied messages. They will now display at 0.85x font-size.",
-                "Added css to hide the Spotify activity indicator icon from Skamt's SpotifyEnhance plugin. (There's not a lot of real estate on the notification, so it's not really viable to show it.)"
-            ]
-        },
-        {
-            title: "8.0.0 - Big Rewrite",
-            type: "added",
-            items: [
-                "A FULL rewrite of the plugin to render notifications natively, improving reliability and fixing minor issues.",
-                "Replaced all styling with default Discord variables for better theme compatibility. Reach out for Custom CSS if needed.",
-                "Unironically reduced API calls—down by 99.9%.",
-                "+ Added an option to hide the orange border on mentions.",
-                "+ Added new option to close notification on right click.",
-                "...finally fixed the oval close button, sorry lol!"
-            ]
-        },
-        {
-            title: "Honorable Mentions",
-            type: "fixed",
-            items: [
-                "Huge thanks to [@skamt](https://github.com/Skamt) for helping with caching logic, API optimizations, and more.",
-                "Shoutout to [@doggybootsy](https://github.com/doggybootsy) for showing me how to render messages natively.\nPlease go and show both their profiles some love!"
+                "Fixed some odd caching issues.",
+                "Fixed issue [#25](https://github.com/DaddyBoard/BD-Plugins/issues/25), thank you [@3941](https://github.com/3941) for the report!"
             ]
         }
         
@@ -366,6 +345,10 @@ module.exports = class PingNotification {
 
 
     css = `
+        div#app-mount > div > div > div > div {
+            transform:translate(0);
+        }
+
         .ping-notification {
             color: var(--text-normal);
             border-radius: 12px;
@@ -651,9 +634,13 @@ module.exports = class PingNotification {
         if (this.settings.popupLocation.endsWith("Centre")) {
             notificationElement.classList.add('centre');
         }
-        const message = constructMessageObj(messageEvent);
+        
+        let message = MessageStore.getMessage(channel.id, messageEvent.id);
 
-        ChannelConstructor.commit(ChannelConstructor.getOrCreate(channel.id).merge([message]));
+        if (!message){
+            message = constructMessageObj(messageEvent);
+            addMessage(message);
+        }
 
         if (message.messageReference) {
 
@@ -716,7 +703,7 @@ module.exports = class PingNotification {
         );
 
         this.activeNotifications.push(notificationElement);
-        document.body.appendChild(notificationElement);
+        document.body.prepend(notificationElement);
         
         void notificationElement.offsetHeight;
         notificationElement.classList.add('show');
@@ -1512,4 +1499,25 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
             }
         }, `${Math.round(remainingTime / 1000)}s`)
     );
+}
+
+function compare(firstId, secondId) {
+    return firstId === secondId ? 0 : 
+           secondId == null ? 1 : 
+           firstId == null ? -1 : 
+           firstId.length > secondId.length ? 1 : 
+           firstId.length < secondId.length ? -1 : 
+           firstId > secondId ? 1 : -1;
+}
+
+function addMessage(message) {
+    const channel = ChannelConstructor.getOrCreate(message.channel_id);
+
+    const newChannel = channel.mutate(r => {
+        r.ready = true;
+        r.cached = true;
+        r._map[message.id] = message;
+    });
+
+    ChannelConstructor.commit(newChannel);
 }
