@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.6
+* @version 1.2.7
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -24,18 +24,11 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "1.2.6 Fixed",
+            "title": "1.2.7 Fixed",
             "type": "fixed",
             "items": [
-                "Fixed mention coloring.",
-                "Fixed role-header coloring(again...)"
-            ]
-        },
-        {
-            "title": "Known Issues",
-            "type": "progress",
-            "items": [
-                "Audit Log coloring is not working."
+                "Fixed mention coloring bug when used with [PingNotification](https://betterdiscord.app/plugin/PingNotification).",
+                "Fixed mention coloring disappearing when invoking a popout from the member list area."
             ]
         }
     ],
@@ -388,6 +381,7 @@ module.exports = class MoreRoleColors {
                 if (props.channelId) {
                     const channel = ChannelStore.getChannel(props.channelId);
                     if (channel?.guild_id) return channel.guild_id;
+                    if (!channel?.guild_id) return;
                 }
                 
                 return SelectedGuildStore.getGuildId();
@@ -399,7 +393,6 @@ module.exports = class MoreRoleColors {
             
             const original = res.props.children.props.children;
             res.props.children.props.children = (props, context) => {
-                res.props.children.props.children = original;
                 
                 const ret = original(props, context);
                 if (ret?.props) {
