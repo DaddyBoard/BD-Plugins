@@ -701,7 +701,6 @@ module.exports = class MoreRoleColors {
                     node.style.backgroundColor = backgroundColor;
                     
                     const tagText = node.querySelector("span");
-                    console.log(tagText, backgroundColor);
                     if (tagText && backgroundColor) {
                         tagText.style.color = this.getContrastingColor(backgroundColor);
                     }
