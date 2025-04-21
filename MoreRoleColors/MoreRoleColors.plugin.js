@@ -24,6 +24,13 @@ const config = {
     banner: "",
     changelog: [
         {
+            "title": "1.2.7 Added",
+            "type": "added",
+            "items": [
+                "Implemented a new calculation method for tags to ensure the text inside the tag is more readable. This is barely tested so please report any issues you find. [#5](https://github.com/DaddyBoard/BD-Plugins/issues/5)"
+            ]
+        },
+        {
             "title": "1.2.7 Fixed",
             "type": "fixed",
             "items": [
@@ -690,8 +697,41 @@ module.exports = class MoreRoleColors {
                 
                 if (username) {
                     const style = username.querySelector("[style]") || username;
-                    node.style.backgroundColor = style?.style?.color;
+                    const backgroundColor = style?.style?.color;
+                    node.style.backgroundColor = backgroundColor;
+                    
+                    const tagText = node.querySelector("span");
+                    console.log(tagText, backgroundColor);
+                    if (tagText && backgroundColor) {
+                        tagText.style.color = this.getContrastingColor(backgroundColor);
+                    }
                 }
+            }
+
+
+            getContrastingColor(color) {
+                let r, g, b;
+                if (color.startsWith('#')) {
+                    const hex = color.substring(1);
+                    r = parseInt(hex.substring(0, 2), 16);
+                    g = parseInt(hex.substring(2, 4), 16);
+                    b = parseInt(hex.substring(4, 6), 16);
+                } else if (color.startsWith('rgb')) {
+                    const rgbValues = color.match(/\d+/g);
+                    if (rgbValues && rgbValues.length >= 3) {
+                        r = parseInt(rgbValues[0]);
+                        g = parseInt(rgbValues[1]);
+                        b = parseInt(rgbValues[2]);
+                    } else {
+                        return "#000000";
+                    }
+                } else {
+                    return "#000000";
+                }
+                
+                const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                
+                return luminance > 0.5 ? "#000000" : "#FFFFFF";
             }
 
             render() {        
@@ -700,7 +740,8 @@ module.exports = class MoreRoleColors {
         }
 
         Patcher.after("MoreRoleColors-Tags", TagModule, "Z", (_, args, res) => {
-            return BdApi.React.createElement(TagWrapper, {tag: res});
+            const modifiedRes = BdApi.React.createElement(TagWrapper, {tag: res});
+            return modifiedRes;
         });
 
         this._unpatchTags = () => {
