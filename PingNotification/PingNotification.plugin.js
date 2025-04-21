@@ -1501,15 +1501,6 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
     );
 }
 
-function compare(firstId, secondId) {
-    return firstId === secondId ? 0 : 
-           secondId == null ? 1 : 
-           firstId == null ? -1 : 
-           firstId.length > secondId.length ? 1 : 
-           firstId.length < secondId.length ? -1 : 
-           firstId > secondId ? 1 : -1;
-}
-
 function addMessage(message) {
     const channel = ChannelConstructor.getOrCreate(message.channel_id);
 
