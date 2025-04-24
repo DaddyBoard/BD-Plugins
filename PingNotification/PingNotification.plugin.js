@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.0.2
+ * @version 8.0.3
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -26,6 +26,7 @@ const MessageActions = BdApi.Webpack.getByKeys("fetchMessage", "deleteMessage");
 const PresenceStore = Webpack.getStore("PresenceStore");
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const messageReferenceSelectors = BdApi.Webpack.getByKeys("messageSpine", "repliedMessageClickableSpine");
+const chatAreaModule = Webpack.getByKeys("chat", "content", "subtitleContainer", "threadSidebarFloating", "channelBottomBarArea");
 const ChannelAckModule = (() => {
     const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
     const module = BdApi.Webpack.getModule((e, m) => filter(BdApi.Webpack.modules[m.id]));
@@ -47,6 +48,13 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 
 const config = {
     changelog: [
+        {
+            title: "8.0.3 - Fixed some issues",
+            type: "added",
+            items: [
+                "Fixed issue [#29](https://github.com/DaddyBoard/BD-Plugins/issues/29), thank you [@Fynn9563](https://github.com/Fynn9563) for the report!"
+            ]
+        },
         {
             title: "8.0.2 - Fixed some issues",
             type: "added",
@@ -345,7 +353,7 @@ module.exports = class PingNotification {
 
 
     css = `
-        div#app-mount > div > div > div > div {
+        .${chatAreaModule.chat} {
             transform:translate(0);
         }
 
