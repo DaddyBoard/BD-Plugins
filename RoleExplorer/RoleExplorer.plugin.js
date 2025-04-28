@@ -2,7 +2,7 @@
 * @name RoleExplorer
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.0.0
+* @version 1.0.1
 * @description View the members of roles in a popout. Remake of RoleMembers by Zerebos.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -162,6 +162,13 @@ module.exports = class RoleExplorer {
                 setSearchQuery("");
             };
 
+            React.useEffect(() => {
+                const scrollContainer = document.querySelector('.role-members-scroll');
+                if (scrollContainer) {
+                    scrollContainer.scrollTop = 0;
+                }
+            }, [view]);
+
             const handleRoleSelect = (role) => {
                 setSelectedRole(role);
                 handleViewChange("members");
@@ -201,10 +208,16 @@ module.exports = class RoleExplorer {
                 if (view === "roles") {
                     return React.createElement("div", {
                         style: {
+                            padding: "0 16px 16px 16px",
+                            overflowY: "auto",
+                            maxHeight: "60vh",
+                        },
+                        className: "role-members-scroll",
+                    }, React.createElement("div", {
+                        style: {
                             display: "grid",
                             gridTemplateColumns: "repeat(2, 1fr)",
-                            gap: "8px",
-                            padding: "0 16px 16px 16px"
+                            gap: "8px"
                         }
                     }, filteredRoles.map(role => 
                         React.createElement("div", {
@@ -296,7 +309,7 @@ module.exports = class RoleExplorer {
                                 })
                             ]))
                         ])
-                    ));
+                    )));
                 }
 
                 return React.createElement("div", {
