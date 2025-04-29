@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.0
+* @version 1.2.1
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -34,14 +34,7 @@ const config = {
             "title": "Added",
             "type": "added",
             "items": [
-                "Added support for showing the last 50 messages in a channel via the popup when the message link is to a channel, rather than a specific message.",
-            ]
-        },
-        {
-            "title": "Fixes",
-            "type": "fixed",
-            "items": [
-                "Reverted to the previous caching method (internal memory cache). There was various placement issues with the store method.",
+                "Changed default behaviors. No changes for existing users.",
             ]
         }
     ],
@@ -102,10 +95,10 @@ module.exports = class PeekMessageLinks {
         this.config = config;
         this.messageCache = new Map();
         this.defaultSettings = {
-            onClick: "popup",
-            onShiftClick: "navigate",
+            onClick: "navigate",
+            onShiftClick: "none",
             onCtrlClick: "none",
-            onHover: "none"
+            onHover: "popup"
         };
         this.settings = this.loadSettings();
         this.hoverPopupTimeout = null;

@@ -10,8 +10,8 @@
 ![PeekMessageLinks](https://github.com/DaddyBoard/BD-Plugins/blob/main/PeekMessageLinks/gif.gif)
 ## 🔧 Default Operation
 
-This overrides the default onClick behaviour of channelMentions to peek into the message link instead of navigating to the channel.
-Shift + Click on a channel mention to navigate to the channel, aka the default behaviour.
+Hover message links to show them in a popup. 
+Customisable, ofc :) 
 
 If you encounter any problems, please [open an issue](https://github.com/DaddyBoard/BD-Plugins/issues).
 
