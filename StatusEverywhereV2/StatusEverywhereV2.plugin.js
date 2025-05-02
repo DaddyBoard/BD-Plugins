@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.0
+* @version 1.0.1
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -15,6 +15,12 @@ const SelectedGuildStore = Webpack.getStore("SelectedGuildStore");
 
 const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
 const MemberAreaAvatar = Webpack.getModule(x=>x && String(x?.type).includes('statusColor'),{searchExports:true})
+const ContextMenuHook = Webpack.getBySource("getUserTag", "referencedUsernameProfile", "interactionUsernameProfile");
+const includes = Filters.byStrings("getChannel","getUser","stopPropagation");
+const exclude1 = Filters.byStrings("moderationAlertId");
+const exclude2 = Filters.byStrings("guild_id");
+const useUserContextMenu = getModule(a =>     includes(a) && !exclude1(a) && !exclude2(a), {searchExports:true})
+
 const Popout = Webpack.getByStrings("Unsupported animation config:",{searchExports:true})
 const userPopout = Webpack.getByStrings('"SENDING"===', 'renderUserGuildPopout: channel should never be');
 const loaduser = Webpack.getByStrings("Invalid arguments", 'type:"popout"', ".getAvatarURL(void 0,80)");
@@ -35,7 +41,7 @@ const config = {
             "title": "v1.0.0",
             "type": "added",
             "items": [
-                "Initial release"
+                "[#30](https://github.com/DaddyBoard/BD-Plugins/issues/30) Fixed right-click on chat avatars, so the normal/expected context menu is shown.\nThanks [@Osyruu](https://github.com/Osyruu)!"
             ]
         }
     ],
@@ -244,8 +250,9 @@ module.exports = class StatusEverywhereV2 {
     
     patchChatAvatars() {
         Patcher.after("ChatAvatarSE", ChatAvatar.ZP, "type", (_, [props], res) => {
-            const {author, message, guildId} = props;
+            const {author, message, guildId, channel} = props;
             const [show, setShow] = React.useState(false);
+            const contextMenuHandler = useUserContextMenu(message.author.id, channel.id)
 
             function preloadUserPopout() {
                 return loaduser(
@@ -293,11 +300,13 @@ module.exports = class StatusEverywhereV2 {
                     shouldShow: show,
                     position: "right",
                     onRequestClose: () => setShow(false),
+                    
                     children: (e) => {
                         return React.createElement("div", {
                             className: "StatusEverywhereV2-Avatar",
                             onClick: () => setShow(true),
-                            onMouseDown: e.onMouseDown,
+                            onContextMenu: contextMenuHandler,
+                            onMouseDown: e.onMouseDown
 
                         }, React.createElement(MemberAreaAvatar, avatarProps))
                     }
