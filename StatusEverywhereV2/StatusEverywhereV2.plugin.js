@@ -1,25 +1,21 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.1
+* @version 1.0.2
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
 * @invite ggNWGDV7e2
 */
 
-const { Webpack, React, Patcher, ReactUtils, Utils, Data, UI, DOM} = BdApi;
+const { Webpack, React, Patcher, ReactUtils, Utils, Data, UI, DOM, Filters} = BdApi;
 const PresenceStore = Webpack.getStore("PresenceStore");
 const SpeakingStore = Webpack.getStore("SpeakingStore");
 const SelectedGuildStore = Webpack.getStore("SelectedGuildStore");
 
 const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
 const MemberAreaAvatar = Webpack.getModule(x=>x && String(x?.type).includes('statusColor'),{searchExports:true})
-const ContextMenuHook = Webpack.getBySource("getUserTag", "referencedUsernameProfile", "interactionUsernameProfile");
-const includes = Filters.byStrings("getChannel","getUser","stopPropagation");
-const exclude1 = Filters.byStrings("moderationAlertId");
-const exclude2 = Filters.byStrings("guild_id");
-const useUserContextMenu = getModule(a =>     includes(a) && !exclude1(a) && !exclude2(a), {searchExports:true})
+const useUserContextMenu = Webpack.getBySource('useHoveredMessage').wq
 
 const Popout = Webpack.getByStrings("Unsupported animation config:",{searchExports:true})
 const userPopout = Webpack.getByStrings('"SENDING"===', 'renderUserGuildPopout: channel should never be');
@@ -38,9 +34,10 @@ const joinedElements = avatarElement1.userAvatar + " " + avatarElement2.avatar +
 const config = {
     changelog: [
         {
-            "title": "v1.0.0",
+            "title": "v1.0.2",
             "type": "added",
             "items": [
+                "Fixed a woopsie, sorry!",
                 "[#30](https://github.com/DaddyBoard/BD-Plugins/issues/30) Fixed right-click on chat avatars, so the normal/expected context menu is shown.\nThanks [@Osyruu](https://github.com/Osyruu)!"
             ]
         }
