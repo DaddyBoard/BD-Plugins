@@ -24,10 +24,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "Fixed",
+            "title": "1.2.8 Fixed",
             "type": "fixed",
             "items": [
-                "React 18 compatibility.",
+                "Fixed plugin crashing. Tag coloring is currently broken, I have not yet fixed it, but made it so it doesn't crash your client. Expect a fix soon."
             ]
         }
     ],
@@ -675,71 +675,71 @@ module.exports = class MoreRoleColors {
     }
 
     patchTags() {
-        const TagModule = BdApi.Webpack.getByStrings(".botTagInvert", { defaultExport: false });
-        TagModule.Z.displayName = "MoreRoleColorsTag";
+        // const TagModule = BdApi.Webpack.getByStrings(".botTagInvert", { defaultExport: false });
+        // TagModule.Z.displayName = "MoreRoleColorsTag";
 
-        class TagWrapper extends BdApi.React.Component {
-            constructor(props) {
-                super(props);
-                this.tagRef = BdApi.React.createRef();
-            }
+        // class TagWrapper extends BdApi.React.Component {
+        //     constructor(props) {
+        //         super(props);
+        //     }
 
-            componentDidMount() {
-                const node = this.tagRef.current;
-                if (!node) return;
+        //     componentDidMount() {
+        //         const node = BdApi.ReactDOM.findDOMNode(this);
+        //         const username = node.parentElement.querySelector("[class*=username_]");
                 
-                const username = node.parentElement.querySelector("[class*=username_]");
-                
-                if (username) {
-                    const style = username.querySelector("[style]") || username;
-                    const backgroundColor = style?.style?.color;
-                    node.style.backgroundColor = backgroundColor;
+        //         if (username) {
+        //             const style = username.querySelector("[style]") || username;
+        //             const backgroundColor = style?.style?.color;
+        //             node.style.backgroundColor = backgroundColor;
                     
-                    const tagText = node.querySelector("span");
-                    if (tagText && backgroundColor) {
-                        tagText.style.color = this.getContrastingColor(backgroundColor);
-                    }
-                }
-            }
+        //             const tagText = node.querySelector("span");
+        //             if (tagText && backgroundColor) {
+        //                 tagText.style.color = this.getContrastingColor(backgroundColor);
+        //             }
+        //         }
+        //     }
 
-            getContrastingColor(color) {
-                let r, g, b;
-                if (color.startsWith('#')) {
-                    const hex = color.substring(1);
-                    r = parseInt(hex.substring(0, 2), 16);
-                    g = parseInt(hex.substring(2, 4), 16);
-                    b = parseInt(hex.substring(4, 6), 16);
-                } else if (color.startsWith('rgb')) {
-                    const rgbValues = color.match(/\d+/g);
-                    if (rgbValues && rgbValues.length >= 3) {
-                        r = parseInt(rgbValues[0]);
-                        g = parseInt(rgbValues[1]);
-                        b = parseInt(rgbValues[2]);
-                    } else {
-                        return "#000000";
-                    }
-                } else {
-                    return "#000000";
-                }
+
+        //     getContrastingColor(color) {
+        //         let r, g, b;
+        //         if (color.startsWith('#')) {
+        //             const hex = color.substring(1);
+        //             r = parseInt(hex.substring(0, 2), 16);
+        //             g = parseInt(hex.substring(2, 4), 16);
+        //             b = parseInt(hex.substring(4, 6), 16);
+        //         } else if (color.startsWith('rgb')) {
+        //             const rgbValues = color.match(/\d+/g);
+        //             if (rgbValues && rgbValues.length >= 3) {
+        //                 r = parseInt(rgbValues[0]);
+        //                 g = parseInt(rgbValues[1]);
+        //                 b = parseInt(rgbValues[2]);
+        //             } else {
+        //                 return "#000000";
+        //             }
+        //         } else {
+        //             return "#000000";
+        //         }
                 
-                const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        //         const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
                 
-                return luminance > 0.5 ? "#000000" : "#FFFFFF";
-            }
+        //         return luminance > 0.5 ? "#000000" : "#FFFFFF";
+        //     }
 
-            render() {        
-                return BdApi.React.cloneElement(this.props.tag, { ref: this.tagRef });
-            }
-        }
+        //     render() {        
+        //         return this.props.tag;
+        //     }
+        // }
 
-        Patcher.after("MoreRoleColors-Tags", TagModule, "Z", (_, args, res) => {
-            const modifiedRes = BdApi.React.createElement(TagWrapper, {tag: res});
-            return modifiedRes;
-        });
+        // Patcher.after("MoreRoleColors-Tags", TagModule, "Z", (_, args, res) => {
+        //     const modifiedRes = BdApi.React.createElement(TagWrapper, {tag: res});
+        //     return modifiedRes;
+        // });
 
-        this._unpatchTags = () => {
-            Patcher.unpatchAll("MoreRoleColors-Tags");
-        };
+        // this._unpatchTags = () => {
+        //     Patcher.unpatchAll("MoreRoleColors-Tags");
+        // };
+
+        console.log("Broken. To be fixed later")
     }
 
     patchServerProfileDisplayName() {
