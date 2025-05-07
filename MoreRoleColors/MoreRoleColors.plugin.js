@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.7
+* @version 1.2.8
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -24,18 +24,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "1.2.7 Added",
-            "type": "added",
-            "items": [
-                "Implemented a new calculation method for tags to ensure the text inside the tag is more readable. This is barely tested so please report any issues you find. [#5](https://github.com/DaddyBoard/BD-Plugins/issues/5)"
-            ]
-        },
-        {
-            "title": "1.2.7 Fixed",
+            "title": "Fixed",
             "type": "fixed",
             "items": [
-                "Fixed mention coloring bug when used with [PingNotification](https://betterdiscord.app/plugin/PingNotification).",
-                "Fixed mention coloring disappearing when invoking a popout from the member list area."
+                "React 18 compatibility.",
             ]
         }
     ],
@@ -689,10 +681,13 @@ module.exports = class MoreRoleColors {
         class TagWrapper extends BdApi.React.Component {
             constructor(props) {
                 super(props);
+                this.tagRef = BdApi.React.createRef();
             }
 
             componentDidMount() {
-                const node = BdApi.ReactDOM.findDOMNode(this);
+                const node = this.tagRef.current;
+                if (!node) return;
+                
                 const username = node.parentElement.querySelector("[class*=username_]");
                 
                 if (username) {
@@ -706,7 +701,6 @@ module.exports = class MoreRoleColors {
                     }
                 }
             }
-
 
             getContrastingColor(color) {
                 let r, g, b;
@@ -734,7 +728,7 @@ module.exports = class MoreRoleColors {
             }
 
             render() {        
-                return this.props.tag;
+                return BdApi.React.cloneElement(this.props.tag, { ref: this.tagRef });
             }
         }
 

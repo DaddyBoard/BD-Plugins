@@ -1,13 +1,14 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.1
+* @version 1.2.2
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
 
 const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM} = BdApi;
+const { createRoot } = ReactDOM;
 const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
 const MessageStore = Webpack.getStore("MessageStore");
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
@@ -31,10 +32,10 @@ const loadThread = BdApi.Webpack.getModule(a => a.loadThread).loadThread;
 const config = {
     changelog: [
         {
-            "title": "Added",
-            "type": "added",
+            "title": "Fixed",
+            "type": "fixed",
             "items": [
-                "Changed default behaviors. No changes for existing users.",
+                "React 18 compatibility.",
             ]
         }
     ],
@@ -283,7 +284,7 @@ module.exports = class PeekMessageLinks {
             const closePopup = (e) => {
                 if (popup && document.body.contains(popup) && !popup.contains(e.target)) {
                     document.removeEventListener('click', closePopup);
-                    ReactDOM.unmountComponentAtNode(popup);
+                    popup.root.unmount();
                     popup.remove();
                 }
             };
@@ -428,7 +429,9 @@ module.exports = class PeekMessageLinks {
             );
         };
 
-        ReactDOM.render(React.createElement(PopupComponent), popupElement);
+        const root = createRoot(popupElement);
+        root.render(React.createElement(PopupComponent));
+        popupElement.root = root;
         
         return popupElement;
     }
@@ -436,7 +439,7 @@ module.exports = class PeekMessageLinks {
     removeAllPopups() {
         document.querySelectorAll('.peek-message-popup').forEach(popup => {
             if (document.body.contains(popup)) {
-                ReactDOM.unmountComponentAtNode(popup);
+                popup.root.unmount();
                 popup.remove();
             }
         });

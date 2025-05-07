@@ -2,13 +2,14 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.0.3
+ * @version 8.0.4
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
  */
 
 const { React, Webpack, ReactDOM } = BdApi;
+const { createRoot } = ReactDOM;
 
 const UserStore = Webpack.getStore("UserStore");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
@@ -49,21 +50,12 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 const config = {
     changelog: [
         {
-            title: "8.0.3 - Fixed some issues",
-            type: "added",
-            items: [
-                "Fixed issue [#29](https://github.com/DaddyBoard/BD-Plugins/issues/29), thank you [@Fynn9563](https://github.com/Fynn9563) for the report!"
-            ]
-        },
-        {
-            title: "8.0.2 - Fixed some issues",
-            type: "added",
-            items: [
-                "Fixed some odd caching issues.",
-                "Fixed issue [#25](https://github.com/DaddyBoard/BD-Plugins/issues/25), thank you [@3941](https://github.com/3941) for the report!"
+            "title": "Fixed",
+            "type": "fixed",
+            "items": [
+                "React 18 compatibility.",
             ]
         }
-        
     ],
     settings: [
         {
@@ -675,9 +667,10 @@ module.exports = class PingNotification {
         const isTestNotification = message.id === "0";
         notificationElement.isTestNotification = isTestNotification;
         
-        notificationElement.style.setProperty('--ping-notification-z-index', isTestNotification ? '1002' : '1001');
+        notificationElement.style.setProperty('--ping-notification-z-index', isTestNotification ? '1003' : '1001');
 
-        ReactDOM.render(
+        const root = createRoot(notificationElement);
+        root.render(
             React.createElement(NotificationComponent, {
                 message: message,
                 channel: channel,
@@ -706,9 +699,9 @@ module.exports = class PingNotification {
                         this.removeNotification(notificationElement);
                     }
                 }
-            }),
-            notificationElement
+            })
         );
+        notificationElement.root = root;
 
         this.activeNotifications.push(notificationElement);
         document.body.prepend(notificationElement);
@@ -726,7 +719,7 @@ module.exports = class PingNotification {
             if (this.settings.readChannelOnClose && notificationElement.manualClose && !notificationElement.isTestNotification) {
                 ChannelAckModule(notificationElement.channelId);
             }
-            ReactDOM.unmountComponentAtNode(notificationElement);
+            notificationElement.root.unmount();
             document.body.removeChild(notificationElement);
             this.activeNotifications = this.activeNotifications.filter(n => n !== notificationElement);
             this.adjustNotificationPositions();
@@ -739,7 +732,7 @@ module.exports = class PingNotification {
     removeAllNotifications() {
         this.activeNotifications.forEach(notification => {
             if (document.body.contains(notification)) {
-                ReactDOM.unmountComponentAtNode(notification);
+                notification.root.unmount();
                 document.body.removeChild(notification);
             }
         });
@@ -872,7 +865,7 @@ module.exports = class PingNotification {
         
         notificationElement.message = updatedMessage;
         
-        ReactDOM.render(
+        notificationElement.root.render(
             React.createElement(NotificationComponent, {
                 message: updatedMessage,
                 channel: notificationChannel,
@@ -901,20 +894,14 @@ module.exports = class PingNotification {
                         this.removeNotification(notificationElement);
                     }
                 }
-            }),
-            notificationElement,
-            () => {
-                requestAnimationFrame(() => {
-                    this.adjustNotificationPositions();
-                });
-            }
+            })
         );
     }
 
     showTestNotification() {
         this.activeNotifications = this.activeNotifications.filter(n => {
             if (n.isTestNotification) {
-                ReactDOM.unmountComponentAtNode(n);
+                n.root.unmount();
                 document.body.removeChild(n);
                 return false;
             }
@@ -949,21 +936,7 @@ module.exports = class PingNotification {
                 channel_id: testChannel.id,
                 author: UserStore.getCurrentUser(),
                 mentioned: true,
-                attachments: [
-                    {
-                        "content_type": "image/png",
-                        "filename": "1519.png",
-                        "height": 279,
-                        "id": "1349758462329880597",
-                        "placeholder": "yvcBBYB/hJaYeph4mWeXbZ6rgP0J",
-                        "placeholder_version": 1,
-                        "proxy_url": "https://media.discordapp.net/attachments/1085348380374470746/1349758462329880597/1519.png?ex=67d44406&is=67d2f286&hm=d848700d90dc3391da9d4e327c3caa8248f303903c1c4f9bab14952a537d48e2&",
-                        "size": 46373,
-                        "url": "https://cdn.discordapp.com/attachments/1085348380374470746/1349758462329880597/1519.png?ex=67d44406&is=67d2f286&hm=d848700d90dc3391da9d4e327c3caa8248f303903c1c4f9bab14952a537d48e2&",
-                        "width": 417,
-                        "spoiler": false
-                    }
-                ]
+                attachments: []
             });
             
             this.testNotificationData = {
