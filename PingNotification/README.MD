@@ -17,7 +17,7 @@ A lightweight BetterDiscord plugin to display in-app notifications that focuses 
 
 ## 🔧 Default Operation
 
-Out of the box, PingNotification will be in "Automatic" mode which will alert for all messages that you physically hear a ping for (aka it follows your discord-level notification settings per guild/channel/user.) 
+Out of the box, PingNotification will alert for all messages that you physically hear a ping for (aka it follows your discord-level notification settings per guild/channel/user.) 
 
 ## ⚙️ Configuration
 
@@ -34,15 +34,12 @@ And much more!
 
 - Some rare forms of messages dont display (like the default discord messages when someone joins a discord server `Glad you're here, person!`)
 
-If you encounter any problems, please [open an issue](https://github.com/DaddyBoard/PingNotification/issues).
+If you encounter any problems, please [open an issue](https://github.com/DaddyBoard/BD-Plugins/issues).
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/DaddyBoard/PingNotification/blob/main/LICENSE) file for details.
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/DaddyBoard/PingNotification/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/DaddyBoard/BD-Plugins/issues).
 
 ## 🌟 Show your support
 
