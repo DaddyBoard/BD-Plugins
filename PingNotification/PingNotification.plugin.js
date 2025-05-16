@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.0.4
+ * @version 8.0.5
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -10,6 +10,9 @@
 
 const { React, Webpack, ReactDOM } = BdApi;
 const { createRoot } = ReactDOM;
+
+const mod = BdApi.Webpack.getModule((a,b) => b.id == "287746").Z;
+const chatInputTypes = BdApi.Webpack.getModule((a,b) => b.id == "541716").Ie;
 
 const UserStore = Webpack.getStore("UserStore");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
@@ -28,6 +31,7 @@ const PresenceStore = Webpack.getStore("PresenceStore");
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const messageReferenceSelectors = BdApi.Webpack.getByKeys("messageSpine", "repliedMessageClickableSpine");
 const chatAreaModule = Webpack.getByKeys("chat", "content", "subtitleContainer", "threadSidebarFloating", "channelBottomBarArea");
+//const checkThreadNotifSetting = Webpack.getByStrings('NO_MESSAGES', 'ALL_MESSAGES', 'resolvedMessageNotifications', {searchExports:true});
 const ChannelAckModule = (() => {
     const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
     const module = BdApi.Webpack.getModule((e, m) => filter(BdApi.Webpack.modules[m.id]));
@@ -53,7 +57,8 @@ const config = {
             "title": "Fixed",
             "type": "fixed",
             "items": [
-                "React 18 compatibility.",
+                "Fixed weird notification behaviour with threads/forum posts.",
+                "React 19 compatibility.",
             ]
         }
     ],
@@ -296,12 +301,12 @@ module.exports = class PingNotification {
             BdApi.Data.save('PingNotification', 'lastVersion', this.meta.version);
         }    
 
-        this.messageCreateHandler = (event) => {
-            if (!event?.message) return;
+        // this.messageCreateHandler = (event) => {
+        //     if (!event?.message) return;
 
-            this.onMessageReceived(event);
+        //     this.onMessageReceived(event);
 
-        };
+        // };
 
         this.messageAckHandler = (event) => {
             if (!this.settings.closeOnRead) return;
@@ -319,14 +324,21 @@ module.exports = class PingNotification {
             }
         };
 
-        Dispatcher.subscribe("MESSAGE_CREATE", this.messageCreateHandler);
+        this.notificationCreateHandler = (event) => {
+            if (!event?.message) return;
+            this.onMessageReceived(event);
+        };
+
+        // Dispatcher.subscribe("MESSAGE_CREATE", this.messageCreateHandler);
+        Dispatcher.subscribe("RPC_NOTIFICATION_CREATE", this.notificationCreateHandler);
         Dispatcher.subscribe("MESSAGE_ACK", this.messageAckHandler);
         BdApi.DOM.addStyle("PingNotificationStyles", this.css);
     }
 
     stop() {
         if (Dispatcher) {
-            Dispatcher.unsubscribe("MESSAGE_CREATE", this.messageCreateHandler);
+            // Dispatcher.unsubscribe("MESSAGE_CREATE", this.messageCreateHandler);
+            Dispatcher.unsubscribe("RPC_NOTIFICATION_CREATE", this.notificationCreateHandler);
             Dispatcher.unsubscribe("MESSAGE_ACK", this.messageAckHandler);
         }
         this.removeAllNotifications();
@@ -563,9 +575,10 @@ module.exports = class PingNotification {
         const currentUser = UserStore.getCurrentUser();
 
         if (!channel || event.message.author.id === currentUser.id) return;
-        if (this.shouldNotify(event.message, channel, currentUser)) {
-            this.showNotification(event.message, channel);
-        }
+        // if (this.shouldNotify(event.message, channel, currentUser)) {
+        //     this.showNotification(event.message, channel);
+        // }
+        this.showNotification(event.message, channel);
     }
 
     shouldNotify(message, channel, currentUser) {
@@ -595,10 +608,17 @@ module.exports = class PingNotification {
             return false;
         }
 
-        const channelOverride = UserGuildSettingsStore.getChannelMessageNotifications(channel.guild_id, channel.id);
-        const guildDefault = UserGuildSettingsStore.getMessageNotifications(channel.guild_id);
-        const finalSetting = channelOverride === 3 ? guildDefault : channelOverride;
-
+        let finalSetting;
+        if (channel.type == 11) {
+            const threadNotifSetting = checkThreadNotifSetting(channel);
+            const settingMap = { 2: 0, 4: 1, 8: 2 };
+            finalSetting = settingMap[threadNotifSetting] ?? 2;
+        } else {
+            const channelOverride = UserGuildSettingsStore.getChannelMessageNotifications(channel.guild_id, channel.id);
+            const guildDefault = UserGuildSettingsStore.getMessageNotifications(channel.guild_id);
+            finalSetting = channelOverride === 3 ? guildDefault : channelOverride;
+        }
+        
         const isDirectlyMentioned = message.mentions?.some(mention => mention.id === currentUser.id);
         const isEveryoneMentioned = message.mention_everyone && 
             !UserGuildSettingsStore.isSuppressEveryoneEnabled(channel.guild_id);
@@ -626,6 +646,10 @@ module.exports = class PingNotification {
     }
 
     async showNotification(messageEvent, channel) {
+        if (!this.settings.allowNotificationsInCurrentChannel && 
+            channel.id === SelectedChannelStore.getChannelId()) {
+            return false;
+        }
         const notificationElement = BdApi.DOM.createElement('div', {
             className: 'ping-notification',
             'data-channel-id': channel.id // this is so MoreRoleColors can find the channelid to apply proper color :)
@@ -982,10 +1006,15 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
     const user = UserStore.getUser(message.author.id);
 
     const [isPaused, setIsPaused] = React.useState(false);
+    const [showReplyBar, setShowReplyBar] = React.useState(false);
     
     React.useEffect(() => {
         ChangeHandler();
     }, [message, message.content, message.embeds, message.attachments, oldMsg]);
+
+    React.useEffect(() => {
+        ChangeHandler();
+    }, [showReplyBar]);
 
     const notificationTitle = React.useMemo(() => {
         let title = '';
@@ -1287,6 +1316,38 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
                 }, notificationTitle)
             ),
             React.createElement('div', { 
+                style: {
+                    position: 'absolute',
+                    top: '12px',
+                    right: '40px',
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--background-primary)',
+                    color: 'var(--text-normal)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                },
+                onClick: (e) => {
+                    e.stopPropagation();
+                    setShowReplyBar((v) => !v);
+                }
+            },
+                React.createElement('svg', {
+                    width: '18',
+                    height: '18',
+                    viewBox: '0 0 24 24',
+                    fill: 'currentColor'
+                },
+                    React.createElement('path', {
+                        d: 'M2.3 7.3a1 1 0 0 0 0 1.4l5 5a1 1 0 0 0 1.4-1.4L5.42 9H11a7 7 0 0 1 7 7v4a1 1 0 1 0 2 0v-4a9 9 0 0 0-9-9H5.41l3.3-3.3a1 1 0 0 0-1.42-1.4l-5 5Z'
+                    })
+                )
+            ),
+            React.createElement('div', { 
                 className: "ping-notification-close", 
                 onClick: (e) => { 
                     e.stopPropagation(); 
@@ -1306,7 +1367,6 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
                     color: 'var(--text-normal)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-
                 }
             }, 
                 React.createElement('svg', {
@@ -1379,13 +1439,18 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
                     backgroundColor: 'transparent'
                 },
                 onClick: onClick
-            }) : null
+            }) : null,
+            showReplyBar && React.createElement(TextAreaContainer, {
+                channel: channel,
+                guild: guild
+            })
         ]),
         React.createElement(ProgressBar, {
             duration: settings.duration,
             isPaused: isPaused,
             onComplete: () => onClose(false),
-            showTimer: settings.showTimer
+            showTimer: settings.showTimer,
+            showReplyBar: showReplyBar
         }),
         settings.privacyMode && React.createElement('div', {
             className: 'ping-notification-hover-text'
@@ -1393,12 +1458,12 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
     );
 }
 
-function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
+function ProgressBar({ duration, isPaused, onComplete, showTimer, showReplyBar }) {
     const [remainingTime, setRemainingTime] = React.useState(duration);
     
     React.useEffect(() => {
         let interval;
-        if (!isPaused) {
+        if (!isPaused && !showReplyBar) {
             interval = setInterval(() => {
                 setRemainingTime(prev => {
                     if (prev <= 100) {
@@ -1411,7 +1476,7 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
             }, 100);
         }
         return () => clearInterval(interval);
-    }, [isPaused, onComplete, duration]);
+    }, [isPaused, showReplyBar, onComplete, duration]);
 
     const progress = (remainingTime / duration) * 100;
 
@@ -1478,8 +1543,42 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
                 borderRadius: '10px',
                 display: showTimer ? 'block' : 'none'
             }
-        }, `${Math.round(remainingTime / 1000)}s`)
+        }, showReplyBar ? "I I" : `${Math.round(remainingTime / 1000)}s`)
     );
+}
+
+
+
+function TextAreaContainer(props) {
+    const CHAT_TYPE_FUCK_DISCORD = {
+        "analyticsName": "CustomType",
+        "autocomplete": {
+            "addReactionShortcut": true,
+            "forceChatLayer": true,
+            "reactions": true
+        },
+        "drafts": {
+            "type": 0,
+            "commandType": 5,
+            "autoSave": true
+        },
+        "permissions": {
+            "requireSendMessages": true
+        },
+        "users": {
+            "allowMentioning": true
+        }
+    }
+  
+  return React.createElement("div", {
+    className: "ReplyBarCustom",
+    style: { margin: "20px", width: "300px" },
+    onClick: (e) => { e.stopPropagation(); }
+  }, React.createElement(mod, {
+    channel: props.channel,
+    guild: props.guild,
+    chatInputType: CHAT_TYPE_FUCK_DISCORD
+  }));
 }
 
 function addMessage(message) {
