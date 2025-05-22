@@ -2,32 +2,33 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.0.4
+ * @version 8.1.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
  */
 
-const { React, Webpack, ReactDOM } = BdApi;
+const { React, Webpack, ReactDOM, UI } = BdApi;
 const { createRoot } = ReactDOM;
 
+const NotificationUtils = BdApi.Webpack.getByStrings("SUPPRESS_NOTIFICATIONS", "SELF_MENTIONABLE_SYSTEM", {searchExports:true});
+if (!NotificationUtils) {
+    UI.showNotice("PingNotification ERROR: Could not find the NotificationUtils module. Please report this on the Github page!", { type: 'error' });
+}
+const NotificationSoundModule = Webpack.getModule(m => m?.playNotificationSound);
 const UserStore = Webpack.getStore("UserStore");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
 const ChannelStore = Webpack.getStore("ChannelStore"); 
 const GuildStore = Webpack.getStore("GuildStore");
-const SelectedChannelStore = Webpack.getStore("SelectedChannelStore");
 const RelationshipStore = Webpack.getStore("RelationshipStore");
-const UserGuildSettingsStore = Webpack.getStore("UserGuildSettingsStore");
 const transitionTo = Webpack.getByStrings(["transitionTo - Transitioning to"],{searchExports:true});
 const GuildMemberStore = Webpack.getStore("GuildMemberStore");
 const Dispatcher = BdApi.Webpack.getByKeys("subscribe", "dispatch");
 const MessageStore = BdApi.Webpack.getStore("MessageStore");
 const ReferencedMessageStore = BdApi.Webpack.getStore("ReferencedMessageStore");
 const MessageActions = BdApi.Webpack.getByKeys("fetchMessage", "deleteMessage");
-const PresenceStore = Webpack.getStore("PresenceStore");
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const messageReferenceSelectors = BdApi.Webpack.getByKeys("messageSpine", "repliedMessageClickableSpine");
-const chatAreaModule = Webpack.getByKeys("chat", "content", "subtitleContainer", "threadSidebarFloating", "channelBottomBarArea");
 const ChannelAckModule = (() => {
     const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
     const module = BdApi.Webpack.getModule((e, m) => filter(BdApi.Webpack.modules[m.id]));
@@ -50,10 +51,29 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 const config = {
     changelog: [
         {
+            "title": "8.1.0 LARGE Update!",
+            "type": "added",
+            "items": [
+                "Added new **`Keyword Tracking` feature**. Go to the Keyword Notifications tab in the settings menu to enable and configure it.\n\nThis comes with `Exact Match`, `Show Keyword` and `Ignored Servers/Channels` settings to control how the keyword tracking works.",
+                "Added new **`Pin` feature**. **You need to have `Show Timer` enabled for this to be visible**. Hover over the timer (numbers) to reveal a pin icon which will permanently freeze the timer (pin). [Click here to see a gif of this in action!](https://i.imgur.com/5cJ7TGY.gif)",
+            ]
+        },
+        {
             "title": "Fixed",
             "type": "fixed",
             "items": [
-                "React 18 compatibility.",
+                "Fixed weird notification behaviour with threads/forum posts.",
+                "Fixed a long-standing, hard-to-detect bug where forwarded messages **from a channel you had no view permissions in** were not being displayed.",
+                "Entirely rewritten the `shouldNotify` function to use discords own internal notification module, this plugin should _finally_ be 1:1 ping -> notification ratio.",
+                "Fixed a few weird case where PingNotification could cause issues with other elements/plugins/themes. I've reverted an old change, so now notifications are on `1003` index, meaning they will be above image modals etc. This is a temporary fix, and will be hopefully be fixed in the future.",
+                "React 19 compatibility.",
+            ]
+        },
+        {
+            title: "On-going",
+            type: "progress",
+            items: [
+                "Next non-bugfix update will likely come with `compact` mode for notifications, following a more recognizable style that `InAppNotifications` by `QWERT` users will be familiar with."
             ]
         }
     ],
@@ -104,13 +124,6 @@ const config = {
                     id: "disableMediaInteraction",
                     name: "Disable Media Interaction",
                     note: "Make all left clicks navigate to the message instead of allowing media interaction, likewise right clicks will always close notifications",
-                    value: false
-                },
-                {
-                    type: "switch",
-                    id: "allowNotificationsInCurrentChannel",
-                    name: "Current Channel Notifications",
-                    note: "Show notifications for the channel you're currently viewing",
                     value: false
                 },
                 {
@@ -219,6 +232,64 @@ const config = {
         },
         {
             type: "category",
+            id: "keywordNotifications",
+            name: "Keyword Notifications",
+            collapsible: true,
+            shown: false,
+            settings: [
+                {
+                    type: "switch",
+                    id: "enableKeywordNotifications",
+                    name: "Enable Keyword Notifications",
+                    note: "Show notifications when messages contain your keywords",
+                    value: false
+                },
+                {
+                    type: "switch",
+                    id: "simulateAudioNotification",
+                    name: "Force Audio on Keyword Notifications",
+                    note: "Simulate a discord message sound when a keyword notification is shown",
+                    value: false
+                },
+                {
+                    type: "switch",
+                    id: "exactMatch",
+                    name: "Exact Match",
+                    note: "Only trigger notifications if the message content exactly matches the keywords. Off = `test` will trigger on `testing`, On = `test` will only trigger on `test`",
+                    value: true
+                },
+                {
+                    type: "switch",
+                    id: "showKeyword",
+                    name: "Show Keyword",
+                    note: "Show the keyword that was detected inside the notification",
+                    value: true
+                },
+                {
+                    type: "text",
+                    id: "notificationKeywords",
+                    name: "Notification Keywords",
+                    note: "Add keywords that will trigger notifications, separated by commas. Example: `hello, hi, hey`",
+                    value: ""
+                },
+                {
+                    type: "text",
+                    id: "ignoredServersKeywords",
+                    name: "Ignored Servers for Keywords",
+                    note: "Add servers you want to ignore keywords from, separated by commas. Example: `1234567890, 1234567891`",
+                    value: ""
+                },
+                {
+                    type: "text",
+                    id: "ignoredChannelsKeywords",
+                    name: "Ignored Channels for Keywords",
+                    note: "Add channels you want to ignore keywords from, separated by commas. Example: `1234567890, 1234567891`",
+                    value: ""
+                }
+            ]
+        },
+        {
+            type: "category",
             id: "advancedSettings",
             name: "Advanced Settings",
             collapsible: true,
@@ -263,7 +334,6 @@ module.exports = class PingNotification {
             maxWidth: 370,
             maxHeight: 300,
             popupLocation: "bottomRight",
-            allowNotificationsInCurrentChannel: false,
             privacyMode: false,
             coloredUsernames: true,
             showNicknames: true,
@@ -276,7 +346,14 @@ module.exports = class PingNotification {
             closeOnRead: true,
             useFriendNicknames: true,
             hideOrangeBorderOnMentions: true,
-            closeOnRightClick: true
+            closeOnRightClick: true,
+            enableKeywordNotifications: true,
+            exactMatch: true,
+            showKeyword: true,
+            simulateAudioNotification: true,
+            notificationKeywords: "",
+            ignoredServersKeywords: "",
+            ignoredChannelsKeywords: ""
         };
         this.settings = this.loadSettings();
         this.activeNotifications = [];
@@ -345,10 +422,6 @@ module.exports = class PingNotification {
 
 
     css = `
-        .${chatAreaModule.chat} {
-            transform:translate(0);
-        }
-
         .ping-notification {
             color: var(--text-normal);
             border-radius: 12px;
@@ -563,69 +636,58 @@ module.exports = class PingNotification {
         const currentUser = UserStore.getCurrentUser();
 
         if (!channel || event.message.author.id === currentUser.id) return;
-        if (this.shouldNotify(event.message, channel, currentUser)) {
-            this.showNotification(event.message, channel);
+        const notifyResult = this.shouldNotify(event.message, channel, currentUser);
+        if (notifyResult && (notifyResult === true || notifyResult.notify === true)) {
+            this.showNotification(event.message, channel, notifyResult);
         }
     }
 
     shouldNotify(message, channel, currentUser) {
-        if (this.settings.hideDND && PresenceStore.getStatus(currentUser.id) === "dnd") {
-            return false;
-        }
+        const shouldNotifyDiscordModule = NotificationUtils(message, message.channel_id, false);
+        let keywordMatch = null;
 
-        if (RelationshipStore.isIgnored(message.author.id)) {
-            return false;
-        }
-
-        if (!this.settings.allowNotificationsInCurrentChannel && 
-            channel.id === SelectedChannelStore.getChannelId()) {
-            return false;
-        }
-
-        if (message.author.id === currentUser.id) return false;
-        if (message.flags && (message.flags & 64) === 64) return false;
-
-        if (!channel.guild_id) {
-            const isGroupDMMuted = UserGuildSettingsStore.isChannelMuted(null, channel.id);
-            const isUserBlocked = RelationshipStore.isBlocked(message.author.id);
-            return !isGroupDMMuted && !isUserBlocked;
-        }
-
-        if (UserGuildSettingsStore.isGuildOrCategoryOrChannelMuted(channel.guild_id, channel.id)) {
-            return false;
-        }
-
-        const channelOverride = UserGuildSettingsStore.getChannelMessageNotifications(channel.guild_id, channel.id);
-        const guildDefault = UserGuildSettingsStore.getMessageNotifications(channel.guild_id);
-        const finalSetting = channelOverride === 3 ? guildDefault : channelOverride;
-
-        const isDirectlyMentioned = message.mentions?.some(mention => mention.id === currentUser.id);
-        const isEveryoneMentioned = message.mention_everyone && 
-            !UserGuildSettingsStore.isSuppressEveryoneEnabled(channel.guild_id);
-
-        let isRoleMentioned = false;
-        if (message.mention_roles?.length > 0 && 
-            !UserGuildSettingsStore.isSuppressRolesEnabled(channel.guild_id)) {
-            const member = GuildMemberStore.getMember(channel.guild_id, currentUser.id);
-            if (member?.roles) {
-                isRoleMentioned = message.mention_roles.some(roleId => 
-                    member.roles.includes(roleId)
-                );
+        if (this.settings.enableKeywordNotifications && this.settings.notificationKeywords && 
+            (!(this.settings.ignoredServersKeywords || '').includes(channel.guild_id)) && 
+            (!(this.settings.ignoredChannelsKeywords || '').includes(channel.id))) {
+            const keywords = this.settings.notificationKeywords
+                .split(",")
+                .map(keyword => keyword.trim())
+                .filter(keyword => keyword.length > 0);
+            
+            const hasKeywordMatch = keywords.some(keyword => {
+                if (this.settings.exactMatch) {
+                    const wordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                    const matches = wordRegex.test(message.content);
+                    if (matches) {
+                        keywordMatch = keyword;
+                        return true;
+                    }
+                    return false;
+                } else {
+                    const matches = message.content.toLowerCase().includes(keyword.toLowerCase());
+                    if (matches) {
+                        keywordMatch = keyword;
+                        return true;
+                    }
+                    return false;
+                }
+            });
+            
+            if (hasKeywordMatch && this.settings.simulateAudioNotification && !shouldNotifyDiscordModule) {
+                NotificationSoundModule.playNotificationSound("message1", 0.4);
             }
         }
 
-        const isMentioned = isDirectlyMentioned || isEveryoneMentioned || isRoleMentioned;
-
-        switch (finalSetting) {
-            case 0: return true;
-            case 1: return isMentioned;
-            case 2: return false;
-            default: return false;
-            
+        if (shouldNotifyDiscordModule || keywordMatch) {
+            return { 
+                notify: true,
+                isKeywordMatch: !!keywordMatch,
+                matchedKeyword: keywordMatch
+            };
         }
     }
 
-    async showNotification(messageEvent, channel) {
+    async showNotification(messageEvent, channel, notifyResult) {
         const notificationElement = BdApi.DOM.createElement('div', {
             className: 'ping-notification',
             'data-channel-id': channel.id // this is so MoreRoleColors can find the channelid to apply proper color :)
@@ -652,10 +714,15 @@ module.exports = class PingNotification {
                     referencedMessage = await MessageActions.fetchMessage({
                         channelId: message.messageReference.channel_id,
                         messageId: message.messageReference.message_id
+                    }).catch(error => {
+                        console.error(error)
+                        return null;
                     });
                 }
 
-                updateMessageReferenceStore(referencedMessage);
+                if (referencedMessage) {
+                    updateMessageReferenceStore(referencedMessage);
+                }
             }
         }
 
@@ -664,10 +731,18 @@ module.exports = class PingNotification {
         notificationElement.messageId = message.id;
         notificationElement.message = message;
         
+        notificationElement.isKeywordMatch = false;
+        notificationElement.matchedKeyword = null;
+        
+        if (notifyResult && typeof notifyResult === 'object') {
+            notificationElement.isKeywordMatch = notifyResult.isKeywordMatch || false;
+            notificationElement.matchedKeyword = notifyResult.matchedKeyword || null;
+        }
+        
         const isTestNotification = message.id === "0";
         notificationElement.isTestNotification = isTestNotification;
         
-        notificationElement.style.setProperty('--ping-notification-z-index', isTestNotification ? '1003' : '1001');
+        notificationElement.style.setProperty('--ping-notification-z-index', isTestNotification ? '1003' : '1003');
 
         const root = createRoot(notificationElement);
         root.render(
@@ -675,6 +750,8 @@ module.exports = class PingNotification {
                 message: message,
                 channel: channel,
                 settings: this.settings,
+                isKeywordMatch: notificationElement.isKeywordMatch,
+                matchedKeyword: notificationElement.matchedKeyword,
                 onClose: (isManual) => { 
                     notificationElement.manualClose = isManual;
                     this.removeNotification(notificationElement);
@@ -870,6 +947,8 @@ module.exports = class PingNotification {
                 message: updatedMessage,
                 channel: notificationChannel,
                 settings: this.settings,
+                isKeywordMatch: notificationElement.isKeywordMatch,
+                matchedKeyword: notificationElement.matchedKeyword,
                 onClose: (isManual) => { 
                     notificationElement.manualClose = isManual;
                     this.removeNotification(notificationElement);
@@ -955,7 +1034,7 @@ module.exports = class PingNotification {
 
 }
 
-function NotificationComponent({ message:propMessage, channel, settings, onClose, onClick, ChangeHandler, onSwipe }) {
+function NotificationComponent({ message:propMessage, channel, settings, isKeywordMatch, matchedKeyword, onClose, onClick, ChangeHandler, onSwipe }) {
     const oldMsg = React.useRef({
         message: propMessage,
         deleted: false
@@ -1028,7 +1107,7 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
                 }, 'NSFW')
             );
         }
-
+        
         return title;
     }, [channel, guild?.name, settings.applyNSFWBlur, oldMsg.current.deleted]);
 
@@ -1387,6 +1466,19 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
             onComplete: () => onClose(false),
             showTimer: settings.showTimer
         }),
+        isKeywordMatch && matchedKeyword && settings.showKeyword && React.createElement('div', {
+            style: {
+                position: 'absolute',
+                bottom: '8px',
+                left: '12px',
+                backgroundColor: 'var(--background-secondary)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                color: 'var(--text-danger)',
+                fontWeight: 'bold',
+                fontSize: '10px'
+            }
+        }, `Keyword: ${matchedKeyword}`),
         settings.privacyMode && React.createElement('div', {
             className: 'ping-notification-hover-text'
         }, "Hover to unblur")
@@ -1395,10 +1487,12 @@ function NotificationComponent({ message:propMessage, channel, settings, onClose
 
 function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
     const [remainingTime, setRemainingTime] = React.useState(duration);
+    const [localPause, setLocalPause] = React.useState(false);
+    const [isHovered, setIsHovered] = React.useState(false);
     
     React.useEffect(() => {
         let interval;
-        if (!isPaused) {
+        if (!isPaused && !localPause) {
             interval = setInterval(() => {
                 setRemainingTime(prev => {
                     if (prev <= 100) {
@@ -1411,7 +1505,7 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
             }, 100);
         }
         return () => clearInterval(interval);
-    }, [isPaused, onComplete, duration]);
+    }, [isPaused, onComplete, duration, localPause]);
 
     const progress = (remainingTime / duration) * 100;
 
@@ -1438,8 +1532,15 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
         );
     };
 
+    const toggleLocalPause = (e) => {
+        e.stopPropagation();
+        setLocalPause(!localPause);
+    };
+
     const progressColor = getProgressColor();
     const progressColorString = `rgb(${progressColor[0]}, ${progressColor[1]}, ${progressColor[2]})`;
+
+    const shouldShowControl = isHovered || localPause;
 
     return React.createElement(React.Fragment, null,
         React.createElement('div', { 
@@ -1469,16 +1570,60 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
                 position: 'absolute',
                 bottom: '8px',
                 right: '12px',
-                fontSize: '12px',
-                color: progressColorString,
-                transition: 'color 0.5s ease',
-                fontWeight: 'bold',
-                backgroundColor: 'var(--background-primary)',
-                padding: '2px 6px',
-                borderRadius: '10px',
-                display: showTimer ? 'block' : 'none'
-            }
-        }, `${Math.round(remainingTime / 1000)}s`)
+                display: showTimer ? 'flex' : 'none',
+                alignItems: 'center',
+                cursor: 'pointer',
+                pointerEvents: 'auto'
+            },
+            onClick: toggleLocalPause,
+            onMouseEnter: () => setIsHovered(true),
+            onMouseLeave: () => setIsHovered(false)
+        }, 
+            React.createElement('div', {
+                style: {
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: 'var(--background-primary)',
+                    borderRadius: '10px',
+                    padding: '2px 6px',
+                    overflow: 'visible'
+                }
+            },
+                React.createElement('div', {
+                    style: {
+                        position: 'absolute',
+                        right: '100%',
+                        marginRight: '4px',
+                        opacity: shouldShowControl ? 1 : 0,
+                        transform: shouldShowControl ? 'translateX(0)' : 'translateX(10px)',
+                        transition: 'opacity 0.2s ease, transform 0.2s ease, color 0.2s ease',
+                        color: localPause ? progressColorString : 'var(--text-normal)',
+                        width: '14px',
+                        height: '14px'
+                    }
+                }, 
+                    React.createElement('svg', {
+                        width: '14',
+                        height: '14',
+                        viewBox: '0 0 24 24',
+                        fill: 'currentColor'
+                    },
+                        React.createElement('path', {
+                            d: 'M19.38 11.38a3 3 0 0 0 4.24 0l.03-.03a.5.5 0 0 0 0-.7L13.35.35a.5.5 0 0 0-.7 0l-.03.03a3 3 0 0 0 0 4.24L13 5l-2.92 2.92-3.65-.34a2 2 0 0 0-1.6.58l-.62.63a1 1 0 0 0 0 1.42l9.58 9.58a1 1 0 0 0 1.42 0l.63-.63a2 2 0 0 0 .58-1.6l-.34-3.64L19 11l.38.38ZM9.07 17.07a.5.5 0 0 1-.08.77l-5.15 3.43a.5.5 0 0 1-.63-.06l-.42-.42a.5.5 0 0 1-.06-.63L6.16 15a.5.5 0 0 1 .77-.08l2.14 2.14Z'
+                        })
+                    )
+                ),
+                React.createElement('span', {
+                    style: {
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        color: progressColorString,
+                        transition: 'color 0.5s ease'
+                    }
+                }, `${Math.round(remainingTime / 1000)}s`)
+            )
+        )
     );
 }
 
