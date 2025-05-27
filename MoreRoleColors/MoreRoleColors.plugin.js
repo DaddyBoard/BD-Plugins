@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.8
+* @version 1.2.9
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -24,10 +24,11 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "1.2.8 Fixed",
+            "title": "1.2.9 Fixed",
             "type": "fixed",
             "items": [
-                "Fixed plugin crashing. Tag coloring is currently broken, I have not yet fixed it, but made it so it doesn't crash your client. Expect a fix soon."
+                "Fixed server profile display name coloring not working.",
+                "Tags & role headers now fixed. Role headers are using a different method to apply colors, please report any issues."
             ]
         }
     ],
@@ -411,7 +412,6 @@ module.exports = class MoreRoleColors {
         
         const patchAccountAreaWithRetry = (attempts = 0) => {
             if (attempts >= MAX_RETRIES) {
-                console.error("[MoreRoleColors] Failed to find account area after", MAX_RETRIES, "attempts");
                 return;
             }
 
@@ -536,74 +536,26 @@ module.exports = class MoreRoleColors {
     }
 
     patchRoleHeaders() {
-        const map = new WeakMap();
+        const roleHeaderModule = BdApi.Webpack.getByStrings("ListSectionItem", "aria-label", "text", {defaultExport:false})
+        BdApi.Patcher.after("MoreRoleColors-roleHeaders", roleHeaderModule, "Z", (_, [props], res) => {
+            if (res.props.className.includes("membersGroup")) {
+                const guildId = SelectedGuildStore.getGuildId();
+                const roles = Object.values(GuildStore.getRoles(guildId));
 
-        BdApi.Patcher.after("MoreRoleColors-roleHeaders", BdApi.Webpack.getBySource("getEnableHardwareAcceleration", "colorRoleName", "getVoiceChannelId", "showMediaItems"), "Z", (that, [{ currentUser }], res) => {
-            let newType = map.get(res.type);
-            if (!newType) {
-                newType = new Proxy(res.type, {
-                    apply() {                
-                        const res = Reflect.apply(...arguments);
+                let roleName = res.props.children[1].props.children[0];
+                let role = roles.find(r => r.name === roleName);
 
-                        const child = res.props.children.props.children.props.children;
-
-                        let newType = map.get(child.type);
-                        if (!newType) {
-                            newType = class extends child.type {
-                                constructor() {
-                                    super(...arguments);
-
-                                    this.renderSection = new Proxy(this.renderSection, {
-                                        apply(target, thisArg, argArray) {
-                                            const res = Reflect.apply(...arguments);
-
-                                            let ret = res;
-                                            if (res.props.tutorialId === "whos-online") {
-                                                ret = res.props.children;
-                                            }
-
-                                            let newType = map.get(ret.type);
-                                            if (!newType) {
-                                                newType = BdApi.React.memo(new Proxy(ret.type.type, {
-                                                    apply(target, thisARg, [props]) {
-                                                        const res = Reflect.apply(...arguments);
-
-                                                        if (props.type === "GROUP") {
-                                                            const role = GuildStore.getRole(props.guildId, props.id);
-                                                            res.props.children[1].props.style = { color: role?.colorString };
-                                                        }
-
-                                                        return res;
-                                                    }
-                                                }));
-
-                                                map.set(ret.type, newType);
-                                                map.set(newType, newType);
-                                            }
-
-                                            ret.type = newType;
-
-                                            return res;
-                                        }
-                                    });
-                                }
-                            }
-
-                            map.set(child.type, newType);
-                            map.set(newType, newType);
-                        }
-                        child.type = newType;
-
-                        return res;
+                if (role) {
+                    res.props.children[1].props.style = {color: role.colorString};
+                } else {
+                    roleName = res.props.children[1].props.children[1];
+                    role = roles.find(r => r.name === roleName);
+                    if (role) {
+                        res.props.children[1].props.style = {color: role.colorString};
                     }
-                });
-
-                map.set(res.type, newType);
-                map.set(newType, newType);
+                }
             }
-
-            res.type = newType;
-        });
+        }); 
     }
 
     patchMessages() {
@@ -628,7 +580,7 @@ module.exports = class MoreRoleColors {
     }
 
     patchUserProfile() {
-        const UserProfileModule = BdApi.Webpack.getByStrings(".pronouns", "UserProfilePopoutBody", { defaultExport: false });
+        const UserProfileModule = BdApi.Webpack.getByStrings(".pronouns", "UserProfilePopoutBody", "relationshipType", { defaultExport: false });
         const cache = new WeakMap();
 
         const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
@@ -659,8 +611,6 @@ module.exports = class MoreRoleColors {
                             });
                         }
 
-                        // res.props.children[0].props.children[0].props.children.props.style = {color: member?.colorString}
-                        // refrain from tree traversing, board
                         return res;
                     }
                 });
@@ -675,71 +625,71 @@ module.exports = class MoreRoleColors {
     }
 
     patchTags() {
-        // const TagModule = BdApi.Webpack.getByStrings(".botTagInvert", { defaultExport: false });
-        // TagModule.Z.displayName = "MoreRoleColorsTag";
+        const TagModule = BdApi.Webpack.getByStrings(".botTagInvert", { defaultExport: false });
 
-        // class TagWrapper extends BdApi.React.Component {
-        //     constructor(props) {
-        //         super(props);
-        //     }
+        class TagWrapper extends BdApi.React.Component {
+            constructor(props) {
+                super(props);
+                this.tagRef = BdApi.React.createRef();
+            }
 
-        //     componentDidMount() {
-        //         const node = BdApi.ReactDOM.findDOMNode(this);
-        //         const username = node.parentElement.querySelector("[class*=username_]");
+            componentDidMount() {
+                const node = this.tagRef.current;
+                if (!node) return;
+
+                if (!node.parentElement) return;
                 
-        //         if (username) {
-        //             const style = username.querySelector("[style]") || username;
-        //             const backgroundColor = style?.style?.color;
-        //             node.style.backgroundColor = backgroundColor;
-                    
-        //             const tagText = node.querySelector("span");
-        //             if (tagText && backgroundColor) {
-        //                 tagText.style.color = this.getContrastingColor(backgroundColor);
-        //             }
-        //         }
-        //     }
+                const username = node.parentElement.querySelector("[class*=username_]");
+                if (!username) return;
 
+                const style = username.querySelector("[style]") || username;
+                const backgroundColor = style?.style?.color;
+                if (!backgroundColor) return;
 
-        //     getContrastingColor(color) {
-        //         let r, g, b;
-        //         if (color.startsWith('#')) {
-        //             const hex = color.substring(1);
-        //             r = parseInt(hex.substring(0, 2), 16);
-        //             g = parseInt(hex.substring(2, 4), 16);
-        //             b = parseInt(hex.substring(4, 6), 16);
-        //         } else if (color.startsWith('rgb')) {
-        //             const rgbValues = color.match(/\d+/g);
-        //             if (rgbValues && rgbValues.length >= 3) {
-        //                 r = parseInt(rgbValues[0]);
-        //                 g = parseInt(rgbValues[1]);
-        //                 b = parseInt(rgbValues[2]);
-        //             } else {
-        //                 return "#000000";
-        //             }
-        //         } else {
-        //             return "#000000";
-        //         }
-                
-        //         const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                
-        //         return luminance > 0.5 ? "#000000" : "#FFFFFF";
-        //     }
+                node.style.backgroundColor = backgroundColor;
 
-        //     render() {        
-        //         return this.props.tag;
-        //     }
-        // }
+                const tagText = node.querySelector("span");
+                if (tagText) {
+                    tagText.style.color = this.getContrastingColor(backgroundColor);
+                }
+            }
 
-        // Patcher.after("MoreRoleColors-Tags", TagModule, "Z", (_, args, res) => {
-        //     const modifiedRes = BdApi.React.createElement(TagWrapper, {tag: res});
-        //     return modifiedRes;
-        // });
+            getContrastingColor(color) {
+                let r, g, b;
+                if (color.startsWith('#')) {
+                    const hex = color.substring(1);
+                    r = parseInt(hex.substring(0, 2), 16);
+                    g = parseInt(hex.substring(2, 4), 16);
+                    b = parseInt(hex.substring(4, 6), 16);
+                } else if (color.startsWith('rgb')) {
+                    const rgbValues = color.match(/\d+/g);
+                    if (rgbValues && rgbValues.length >= 3) {
+                        r = parseInt(rgbValues[0]);
+                        g = parseInt(rgbValues[1]);
+                        b = parseInt(rgbValues[2]);
+                    } else {
+                        return "#000000";
+                    }
+                } else {
+                    return "#000000";
+                }
 
-        // this._unpatchTags = () => {
-        //     Patcher.unpatchAll("MoreRoleColors-Tags");
-        // };
+                const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                return luminance > 0.5 ? "#000000" : "#FFFFFF";
+            }
 
-        console.log("Broken. To be fixed later")
+            render() {
+                return BdApi.React.cloneElement(this.props.tag, { ref: this.tagRef });
+            }
+        }
+
+        Patcher.after("MoreRoleColors-Tags", TagModule, "Z", (_, args, res) => {
+            return BdApi.React.createElement(TagWrapper, { tag: res });
+        });
+
+        this._unpatchTags = () => {
+            Patcher.unpatchAll("MoreRoleColors-Tags");
+        };
     }
 
     patchServerProfileDisplayName() {
