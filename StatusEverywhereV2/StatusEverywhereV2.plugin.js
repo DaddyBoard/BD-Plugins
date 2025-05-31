@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.2
+* @version 1.0.3
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -19,7 +19,7 @@ const useUserContextMenu = Webpack.getBySource('useHoveredMessage').wq
 
 const Popout = Webpack.getByStrings("Unsupported animation config:",{searchExports:true})
 const userPopout = Webpack.getByStrings('"SENDING"===', 'renderUserGuildPopout: channel should never be');
-const loaduser = Webpack.getByStrings("Invalid arguments", 'type:"popout"', ".getAvatarURL(void 0,80)");
+const loaduser = BdApi.Webpack.getByStrings("preloadUserProfileForPopout", 'Invalid arguments');
 const loaduserArg = Webpack.getByStrings('searchParams.set("passthrough"', '.concat(location.protocol)', 'AVATAR_DECORATION_PRESETS', { searchExports: true });
 
 const VoiceChatAvatar = Webpack.getBySource("iconPriortySpeakerSpeaking", "avatarContainer", "getAvatarURL");
@@ -34,11 +34,10 @@ const joinedElements = avatarElement1.userAvatar + " " + avatarElement2.avatar +
 const config = {
     changelog: [
         {
-            "title": "v1.0.2",
+            "title": "v1.0.3",
             "type": "added",
             "items": [
-                "Fixed a woopsie, sorry!",
-                "[#30](https://github.com/DaddyBoard/BD-Plugins/issues/30) Fixed right-click on chat avatars, so the normal/expected context menu is shown.\nThanks [@Osyruu](https://github.com/Osyruu)!"
+                "Fixed popout on chat avatars. [#38](https://github.com/DaddyBoard/BD-Plugins/issues/38), thanks [@lolpowerluke](https://github.com/lolpowerluke)!"
             ]
         }
     ],
@@ -237,19 +236,17 @@ module.exports = class StatusEverywhereV2 {
 
     forceUpdateVoice() {
         const voiceUsers = Array.from(document.querySelectorAll("[class*=voiceUser_]"));
-        console.log(voiceUsers);
         for (const node of voiceUsers) {
-            console.log(node);
             ReactUtils.getOwnerInstance(node)?.forceUpdate();
-            console.log(ReactUtils.getOwnerInstance(node));
         }
     }
     
     patchChatAvatars() {
         Patcher.after("ChatAvatarSE", ChatAvatar.ZP, "type", (_, [props], res) => {
             const {author, message, guildId, channel} = props;
+            const popoutRef = React.useRef();
             const [show, setShow] = React.useState(false);
-            const contextMenuHandler = useUserContextMenu(message.author.id, channel.id)
+            const contextMenuHandler = useUserContextMenu(message.author?.id, channel?.id)
 
             function preloadUserPopout() {
                 return loaduser(
@@ -294,12 +291,14 @@ module.exports = class StatusEverywhereV2 {
                         return userPopout(e, message)
                     },
                     preload: preloadUserPopout,
+                    targetElementRef: popoutRef,
                     shouldShow: show,
                     position: "right",
                     onRequestClose: () => setShow(false),
                     
                     children: (e) => {
                         return React.createElement("div", {
+                            ref: popoutRef,
                             className: "StatusEverywhereV2-Avatar",
                             onClick: () => setShow(true),
                             onContextMenu: contextMenuHandler,
