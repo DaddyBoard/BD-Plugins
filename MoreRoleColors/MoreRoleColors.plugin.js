@@ -1,34 +1,35 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.9
+* @version 1.2.10
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
 
 const { Webpack, React, Patcher, ReactUtils, Utils } = BdApi;
-const { getStore, getByStrings, getBySource, getWithKey, Filters } = Webpack;
+const { getStore, getByStrings, getBySource, getWithKey, Filters, getModule } = Webpack;
 const VoiceUser = getBySource("iconPriortySpeakerSpeaking", "avatarContainer", "getAvatarURL");
 const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
+const TypingStore = getStore("TypingStore");
 const TypingModule = getByStrings(".colors.INTERACTIVE_NORMAL).hex(),activeTextColor", { defaultExport: false });
 const [MentionModule, key] = getWithKey(Filters.byStrings('USER_MENTION',"getNickname", "inlinePreview"));
 const ChannelStore = getStore("ChannelStore");
 const UserStore = getStore("UserStore");
 const GuildStore = getStore("GuildStore");
+const useStateFromStores = getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
 
 //types for changelog: added, fixed, improved, progress.
 const config = {
     banner: "",
     changelog: [
         {
-            "title": "1.2.9 Fixed",
+            "title": "1.2.10 Fixed",
             "type": "fixed",
             "items": [
-                "Fixed server profile display name coloring not working.",
-                "Tags & role headers now fixed. Role headers are using a different method to apply colors, please report any issues."
+                "Fixed typing indicator coloring not working."
             ]
         }
     ],
@@ -322,9 +323,14 @@ module.exports = class MoreRoleColors {
                 const target = res.type;
 
                 newType = function(props) {
+                    const channelId = props.channel?.id;
+                    const typingUsersStore = useStateFromStores([TypingStore], () => 
+                        TypingStore.getTypingUsers(channelId)
+                    );
+
                     const res = target.apply(this, arguments);
 
-                    const typingUsers = Object.keys(props.typingUsers)
+                    const typingUsers = Object.keys(typingUsersStore)
                         .filter(e => e != UserStore.getCurrentUser().id)
                         .filter(e => !RelationshipStore.isBlockedOrIgnored(e))
                         .map(e => UserStore.getUser(e))
