@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.1.0
+ * @version 8.2.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -15,7 +15,12 @@ const NotificationUtils = BdApi.Webpack.getByStrings("SUPPRESS_NOTIFICATIONS", "
 if (!NotificationUtils) {
     UI.showNotice("PingNotification ERROR: Could not find the NotificationUtils module. Please report this on the Github page!", { type: 'error' });
 }
+const UserFetchModule = Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Webpack.Filters.byStrings("USER_UPDATE", "Promise.resolve") })
+const IdleStore = Webpack.getStore("IdleStore");
+const WindowStore = Webpack.getStore("WindowStore");
 const NotificationSoundModule = Webpack.getModule(m => m?.playNotificationSound);
+const SelectedChannelStore = Webpack.getStore("SelectedChannelStore");
+const UserGuildSettingsStore = Webpack.getStore("UserGuildSettingsStore");
 const UserStore = Webpack.getStore("UserStore");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
 const ChannelStore = Webpack.getStore("ChannelStore"); 
@@ -27,6 +32,7 @@ const Dispatcher = BdApi.Webpack.getByKeys("subscribe", "dispatch");
 const MessageStore = BdApi.Webpack.getStore("MessageStore");
 const ReferencedMessageStore = BdApi.Webpack.getStore("ReferencedMessageStore");
 const MessageActions = BdApi.Webpack.getByKeys("fetchMessage", "deleteMessage");
+const hasThreadElement = BdApi.Webpack.getBySource("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage").hasThread;
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const messageReferenceSelectors = BdApi.Webpack.getByKeys("messageSpine", "repliedMessageClickableSpine");
 const ChannelAckModule = (() => {
@@ -51,30 +57,14 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 const config = {
     changelog: [
         {
-            "title": "8.1.0 LARGE Update!",
+            "title": "8.2.0 LARGE Update!",
             "type": "added",
             "items": [
-                "Added new **`Keyword Tracking` feature**. Go to the Keyword Notifications tab in the settings menu to enable and configure it.\n\nThis comes with `Exact Match`, `Show Keyword` and `Ignored Servers/Channels` settings to control how the keyword tracking works.",
-                "Added new **`Pin` feature**. **You need to have `Show Timer` enabled for this to be visible**. Hover over the timer (numbers) to reveal a pin icon which will permanently freeze the timer (pin). [Click here to see a gif of this in action!](https://i.imgur.com/5cJ7TGY.gif)",
-            ]
-        },
-        {
-            "title": "Fixed",
-            "type": "fixed",
-            "items": [
-                "Fixed weird notification behaviour with threads/forum posts.",
-                "Fixed a long-standing, hard-to-detect bug where forwarded messages **from a channel you had no view permissions in** were not being displayed.",
-                "Entirely rewritten the `shouldNotify` function to use discords own internal notification module, this plugin should _finally_ be 1:1 ping -> notification ratio.",
-                "Fixed a few weird case where PingNotification could cause issues with other elements/plugins/themes. I've reverted an old change, so now notifications are on `1003` index, meaning they will be above image modals etc. This is a temporary fix, and will be hopefully be fixed in the future.",
-                "React 19 compatibility.",
-            ]
-        },
-        {
-            title: "On-going",
-            type: "progress",
-            items: [
-                "Next non-bugfix update will likely come with `compact` mode for notifications, following a more recognizable style that `InAppNotifications` by `QWERT` users will be familiar with."
-            ]
+                "Added support for **`Thread/Forum new posts` notifications**. Go to the Thread Notifications tab in the settings menu to enable and configure it.",
+                "Added support for **`Reaction` notifications**. Go to the Reaction Notifications tab in the settings menu to enable and configure it.",
+                "Added new feature **`Pin on AFK` setting**. Go to the new `Auto Pause` category in the settings menu to enable and configure it.",
+                "Added new feature **`Pin on 'Window Not Visible'` setting**. Go to the new `Auto Pause` category in the settings menu to enable and configure it.",
+                ]
         }
     ],
     settings: [
@@ -146,6 +136,51 @@ const config = {
                     name: "Close on Right Click",
                     note: "Close notifications when right-clicking on them. To override the context menu, enable Disable Media Interaction aswell.",
                     value: false
+                }
+            ]
+        },
+        {
+            type: "category",
+            id: "autoPauseCategory",
+            name: "Auto Pause Settings",
+            collapsible: true,
+            shown: false,
+            settings: [
+                {
+                    type: "switch",
+                    id: "pinOnAFK",
+                    name: "Pin on AFK",
+                    note: "Pin notifications when you are AFK (REQUIRES 'Show Timer' to be enabled)",
+                    value: false
+                },
+                {
+                    type: "dropdown",
+                    id: "noLongerAFKBehavior",
+                    name: "No longer AFK Behavior",
+                    note: "What to do when you are no longer AFK?",
+                    value: "doNothing",
+                    options: [
+                        { label: "Do Nothing", value: "doNothing" },
+                        { label: "Unpin All Notifications", value: "unpinAll" }
+                    ]
+                },
+                {
+                    type: "switch",
+                    id: "pinOnWindowNotVisible",
+                    name: "Pin on 'Window Not Visible'",
+                    note: "Pin notifications whilst discord is minimized or has another window overlapping (REQUIRES 'Show Timer' to be enabled)",
+                    value: false
+                },
+                {
+                    type: "dropdown",
+                    id: "noLongerWindowNotVisible",
+                    name: "No longer 'Window Not Visible'",
+                    note: "What happens when discord returns to visibility?",
+                    value: "unpinAll",
+                    options: [
+                        { label: "Do Nothing", value: "doNothing" },
+                        { label: "Unpin All Notifications", value: "unpinAll" }
+                    ]
                 }
             ]
         },
@@ -290,6 +325,52 @@ const config = {
         },
         {
             type: "category",
+            id: "reactionNotifications",
+            name: "Reaction Notifications",
+            collapsible: true,
+            shown: false,
+            settings: [
+                {
+                    type: "switch",
+                    id: "enableReactionNotifications",
+                    name: "Enable Reaction Notifications",
+                    note: "Show notifications when people react to your messages",
+                    value: ""
+                },
+                {
+                    type: "switch",
+                    id: "simulateAudioNotificationReaction",
+                    name: "Simulate Audio on Reaction",
+                    note: "Simulate a discord message sound when a reaction notification is shown",
+                    value: ""
+                }
+            ]
+        },
+        {
+            type: "category",
+            id: "threadNotifications",
+            name: "Thread Notifications",
+            collapsible: true,
+            shown: false,
+            settings: [
+                {
+                    type: "switch",
+                    id: "enableThreadNotifications",
+                    name: "Enable Thread Notifications",
+                    note: "Show notifications when new threads are created",
+                    value: ""
+                },
+                {
+                    type: "switch",
+                    id: "simulateAudioNotificationThread",
+                    name: "Simulate Audio on Thread",
+                    note: "Simulate a discord message sound when a thread notification is shown",
+                    value: ""
+                }
+            ]
+        },
+        {
+            type: "category",
             id: "advancedSettings",
             name: "Advanced Settings",
             collapsible: true,
@@ -353,13 +434,22 @@ module.exports = class PingNotification {
             simulateAudioNotification: true,
             notificationKeywords: "",
             ignoredServersKeywords: "",
-            ignoredChannelsKeywords: ""
+            ignoredChannelsKeywords: "",
+            enableReactionNotifications: true,
+            simulateAudioNotificationReaction: false,
+            enableThreadNotifications: true,
+            simulateAudioNotificationThread: true,
+            pinOnAFK: false,
+            noLongerAFKBehavior: "doNothing",
+            pinOnWindowNotVisible: false,
+            noLongerWindowNotVisible: "unpinAll"
         };
         this.settings = this.loadSettings();
         this.activeNotifications = [];
         this.testNotificationData = null;
 
         this.onMessageReceived = this.onMessageReceived.bind(this);
+        this.messageThreadCreateHandler = this.messageThreadCreateHandler.bind(this);
     }
 
     start() {
@@ -380,6 +470,11 @@ module.exports = class PingNotification {
 
         };
 
+        this.reactionAddHandler = (event) => {
+            if (!this.settings.enableReactionNotifications) return;
+            this.onReactionReceived(event);
+        };
+
         this.messageAckHandler = (event) => {
             if (!this.settings.closeOnRead) return;
                         
@@ -397,6 +492,8 @@ module.exports = class PingNotification {
         };
 
         Dispatcher.subscribe("MESSAGE_CREATE", this.messageCreateHandler);
+        Dispatcher.subscribe("THREAD_CREATE", this.messageThreadCreateHandler);
+        Dispatcher.subscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
         Dispatcher.subscribe("MESSAGE_ACK", this.messageAckHandler);
         BdApi.DOM.addStyle("PingNotificationStyles", this.css);
     }
@@ -405,6 +502,8 @@ module.exports = class PingNotification {
         if (Dispatcher) {
             Dispatcher.unsubscribe("MESSAGE_CREATE", this.messageCreateHandler);
             Dispatcher.unsubscribe("MESSAGE_ACK", this.messageAckHandler);
+            Dispatcher.unsubscribe("THREAD_CREATE", this.messageThreadCreateHandler);
+            Dispatcher.unsubscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
         }
         this.removeAllNotifications();
         BdApi.DOM.removeStyle("PingNotificationStyles");
@@ -628,10 +727,17 @@ module.exports = class PingNotification {
             display: none !important;
         }
 
+        .ping-notification .${hasThreadElement}:after {
+            border-bottom: 0px !important;
+            border-bottom-left-radius: 0px !important;
+            border-left: 0px !important;
+        }
     `;
 
     onMessageReceived(event) {
         if (!event.message?.channel_id) return;
+        if (event.message.type === 18) return;
+        
         const channel = ChannelStore.getChannel(event.message.channel_id);
         const currentUser = UserStore.getCurrentUser();
 
@@ -639,6 +745,65 @@ module.exports = class PingNotification {
         const notifyResult = this.shouldNotify(event.message, channel, currentUser);
         if (notifyResult && (notifyResult === true || notifyResult.notify === true)) {
             this.showNotification(event.message, channel, notifyResult);
+        }
+    }
+
+    async messageThreadCreateHandler(event) {
+        const channel = ChannelStore.getChannel(event.channel.id);
+        const parentChannel = ChannelStore.getChannel(channel.parent_id);
+        let author = UserStore.getUser(event.channel.ownerId);
+        if (!author) {
+            author = await UserFetchModule.fetchUser(event.channel.ownerId);
+        }
+        if (!event.isNewlyCreated) return;
+        if (event.channel.ownerId === UserStore.getCurrentUser().id) return;
+        const status = UserGuildSettingsStore.getNewForumThreadsCreated(parentChannel)
+        if (status) {
+            const messageToConstruct = {
+                id: `PingNotification-Reaction-${Date.now()}`,
+                channel_id: channel.id,
+                content: `:thread: ${event.channel.name}\n-# NEW THREAD CREATED`,
+                author: author,
+                timestamp: Date.now(),
+            }
+            this.showNotification(messageToConstruct, parentChannel, {notify: true}, channel);
+            NotificationSoundModule.playNotificationSound("message1", 0.4);
+        }
+    }
+
+    async onReactionReceived(event) {
+        const currentUser = UserStore.getCurrentUser();
+        let reacter = UserStore.getUser(event.userId);
+        if (!reacter) {
+            reacter = await UserFetchModule.fetchUser(event.userId);
+        }
+        const channel = ChannelStore.getChannel(event.channelId);
+        if (event.messageAuthorId !== currentUser.id) return;
+        if (reacter.id === currentUser.id) return;
+        if (channel.id === SelectedChannelStore.getChannelId()) return;
+        let content = "";
+        if (event.emoji.id) {
+            content = `reacted <a:${event.emoji.name}:${event.emoji.id}> to your message`
+        } else {
+            content = `reacted ${event.emoji.name} to your message`
+        }
+        const messageToConstruct = {
+            id: `PingNotification-Reaction-${Date.now()}`,
+            channel_id: channel.id,
+            content: content,
+            author: reacter,
+            timestamp: Date.now(),
+            message_reference: {
+                channel_id: channel.id,
+                guild_id: channel.guild_id,
+                message_id: event.messageId,
+                type: 0
+            },
+            type: 19
+        }
+        this.showNotification(messageToConstruct, channel, {notify: true}, channel);
+        if (this.settings.simulateAudioNotificationReaction) {
+            NotificationSoundModule.playNotificationSound("message1", 0.4);
         }
     }
 
@@ -687,7 +852,7 @@ module.exports = class PingNotification {
         }
     }
 
-    async showNotification(messageEvent, channel, notifyResult) {
+    async showNotification(messageEvent, channel, notifyResult, threadChannel) {
         const notificationElement = BdApi.DOM.createElement('div', {
             className: 'ping-notification',
             'data-channel-id': channel.id // this is so MoreRoleColors can find the channelid to apply proper color :)
@@ -727,7 +892,7 @@ module.exports = class PingNotification {
         }
 
         notificationElement.creationTime = Date.now();
-        notificationElement.channelId = channel.id;
+        notificationElement.channelId = threadChannel?.id || channel.id;
         notificationElement.messageId = message.id;
         notificationElement.message = message;
         
@@ -758,7 +923,7 @@ module.exports = class PingNotification {
                 },
                 onClick: () => {
                     if (!isTestNotification) {
-                        this.onNotificationClick(channel, message);
+                        this.onNotificationClick(channel, message, threadChannel);
                     }
                     this.removeNotification(notificationElement);
                 },
@@ -858,7 +1023,7 @@ module.exports = class PingNotification {
         });
     }
 
-    onNotificationClick(channel, message) {
+    onNotificationClick(channel, message, threadChannel) {
         const notificationsToRemove = this.activeNotifications.filter(notification => 
             notification.channelId === channel.id
         );
@@ -866,8 +1031,12 @@ module.exports = class PingNotification {
         notificationsToRemove.forEach(notification => {
             this.removeNotification(notification);
         });
-
-        transitionTo(`/channels/${channel.guild_id || "@me"}/${channel.id}/${message.id}`);
+        
+        if (threadChannel) {
+            transitionTo(`/channels/${channel.guild_id || "@me"}/${threadChannel.id}`);
+        } else {
+            transitionTo(`/channels/${channel.guild_id || "@me"}/${channel.id}/${message.id}`);
+        }
     }
 
     getSettingsPanel() {
@@ -1061,7 +1230,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
     const user = UserStore.getUser(message.author.id);
 
     const [isPaused, setIsPaused] = React.useState(false);
-    
+
     React.useEffect(() => {
         ChangeHandler();
     }, [message, message.content, message.embeds, message.attachments, oldMsg]);
@@ -1145,7 +1314,12 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
 
     const avatarUrl = React.useMemo(() => {
         if (settings.useServerProfilePictures && channel.guild_id) {
-            return user.getAvatarURL(channel.guild_id) || message.author.avatar
+            try {
+                return user.getAvatarURL(channel.guild_id) || message.author.avatar;
+            } catch (error) {
+                console.error('Error getting avatar URL:', error);
+                return message.author.avatar;
+            }
         }
         return message.author.avatar
             ? `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}.png?size=128`
@@ -1464,7 +1638,8 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
             duration: settings.duration,
             isPaused: isPaused,
             onComplete: () => onClose(false),
-            showTimer: settings.showTimer
+            showTimer: settings.showTimer,
+            settings: settings
         }),
         isKeywordMatch && matchedKeyword && settings.showKeyword && React.createElement('div', {
             style: {
@@ -1485,10 +1660,33 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
     );
 }
 
-function ProgressBar({ duration, isPaused, onComplete, showTimer }) {
+function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
     const [remainingTime, setRemainingTime] = React.useState(duration);
     const [localPause, setLocalPause] = React.useState(false);
     const [isHovered, setIsHovered] = React.useState(false);
+    
+    if (settings.pinOnAFK && settings.showTimer) {
+        const isAFK = useStateFromStores([IdleStore], () => IdleStore.isAFK());
+        
+        React.useEffect(() => {
+            if (isAFK) {
+                setLocalPause(true);
+            } else if (settings.noLongerAFKBehavior === "unpinAll") {
+                setLocalPause(false);
+            }
+        }, [isAFK]);
+    }
+
+    if (settings.pinOnWindowNotVisible && settings.showTimer) {
+        const isWindowVisible = useStateFromStores([WindowStore], () => WindowStore.isVisible());
+        React.useEffect(() => {
+            if (!isWindowVisible) {
+                setLocalPause(true);
+            } else if (settings.noLongerWindowNotVisible === "unpinAll") {
+                setLocalPause(false);
+            }
+        }, [isWindowVisible]);
+    }
     
     React.useEffect(() => {
         let interval;
