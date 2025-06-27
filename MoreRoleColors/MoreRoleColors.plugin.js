@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.10
+* @version 1.2.11
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -26,10 +26,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "1.2.10 Fixed",
+            "title": "1.2.11 Fixed",
             "type": "fixed",
             "items": [
-                "Fixed typing indicator coloring not working."
+                "Fixed role headers coloring not working."
             ]
         }
     ],
@@ -542,7 +542,7 @@ module.exports = class MoreRoleColors {
     }
 
     patchRoleHeaders() {
-        const roleHeaderModule = BdApi.Webpack.getByStrings("ListSectionItem", "aria-label", "text", {defaultExport:false})
+        const roleHeaderModule = BdApi.Webpack.getBySource(/,.{1,3}.container,.{1,3}.header\),/)
         BdApi.Patcher.after("MoreRoleColors-roleHeaders", roleHeaderModule, "Z", (_, [props], res) => {
             if (res.props.className.includes("membersGroup")) {
                 const guildId = SelectedGuildStore.getGuildId();
