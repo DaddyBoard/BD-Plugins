@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.2
+* @version 1.2.3
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -35,7 +35,7 @@ const config = {
             "title": "Fixed",
             "type": "fixed",
             "items": [
-                "React 18 compatibility.",
+                "New discord CSS variables.",
             ]
         }
     ],
@@ -384,7 +384,7 @@ module.exports = class PeekMessageLinks {
                         : { bottom: `${bottomPosition}px` }
                     ),
                     left: `${Math.min(Math.max(edgeMargin, targetRect.left), window.innerWidth - 460 - edgeMargin)}px`,
-                    backgroundColor: 'var(--background-primary)',
+                    backgroundColor: 'var(--background-base-low)',
                     borderRadius: '8px',
                     padding: '8px',
                     width: '460px',
@@ -393,7 +393,7 @@ module.exports = class PeekMessageLinks {
                     boxShadow: 'var(--elevation-high)',
                     zIndex: 1001,
                     opacity: 1,
-                    border: '1px solid var(--background-tertiary)',
+                    border: '1px solid var(--background-base-lowest)',
                     msOverflowStyle: 'none',
                     scrollbarWidth: 'none',
                     '&::-webkit-scrollbar': {

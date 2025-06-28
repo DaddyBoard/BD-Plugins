@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.2.0
+ * @version 8.2.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -57,13 +57,18 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 const config = {
     changelog: [
         {
-            "title": "8.2.0 LARGE Update!",
+            "title": "8.2.1 additions",
             "type": "added",
             "items": [
-                "Added support for **`Thread/Forum new posts` notifications**. Go to the Thread Notifications tab in the settings menu to enable and configure it.",
-                "Added support for **`Reaction` notifications**. Go to the Reaction Notifications tab in the settings menu to enable and configure it.",
-                "Added new feature **`Pin on AFK` setting**. Go to the new `Auto Pause` category in the settings menu to enable and configure it.",
-                "Added new feature **`Pin on 'Window Not Visible'` setting**. Go to the new `Auto Pause` category in the settings menu to enable and configure it.",
+                "Added a new setting to adjust the animation duration of the notifications when they are readjusted (like when you close one, and they all move up/down). You'll find this in `Advanced Settings` category.",
+            ]
+        },
+        {
+            "title": "8.2.1 small fixes",
+            "type": "fixed",
+            "items": [
+                "Fixed the toggle for `Thread Notifications`so it now actually disables/enables the feature.",
+                "Updated css to use the new discord css variables.",
                 ]
         }
     ],
@@ -401,6 +406,19 @@ const config = {
                     units: "px",
                     defaultValue: 300,
                     stickToMarkers: false
+                },
+                {
+                    type: "slider",
+                    id: "readjustAnimationDuration",
+                    name: "Readjust Animation Duration",
+                    note: "Default: 100ms",
+                    value: 100,
+                    min: 0,
+                    max: 500,
+                    markers: [0, 100, 200, 300, 400, 500],
+                    units: "ms",
+                    defaultValue: 100,
+                    step: 100
                 }
             ]
         }
@@ -442,7 +460,8 @@ module.exports = class PingNotification {
             pinOnAFK: false,
             noLongerAFKBehavior: "doNothing",
             pinOnWindowNotVisible: false,
-            noLongerWindowNotVisible: "unpinAll"
+            noLongerWindowNotVisible: "unpinAll",
+            readjustAnimationDuration: 100
         };
         this.settings = this.loadSettings();
         this.activeNotifications = [];
@@ -522,7 +541,7 @@ module.exports = class PingNotification {
 
     css = `
         .ping-notification {
-            color: var(--text-normal);
+            color: var(--text-default);
             border-radius: 12px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 1px rgba(255, 255, 255, 0.1);
             overflow: hidden;
@@ -606,7 +625,7 @@ module.exports = class PingNotification {
             top: calc(50% + 20px);
             left: 50%;
             transform: translate(-50%, -50%);
-            color: var(--text-normal);
+            color: var(--text-default);
             font-size: var(--ping-notification-content-font-size);
             font-weight: 500;
             pointer-events: none;
@@ -629,11 +648,10 @@ module.exports = class PingNotification {
 
         .ping-notification [class*="spoilerContent_"],
         .ping-notification [class*="spoilerMarkdownContent_"] {
-            background-color: var(--background-secondary-alt);
-            border-color: var(--background-primary);
-            border-width: 1px;
-            border-style: solid;
-            transition: background-color 0.2s ease;
+            background-color: var(--__current--spoiler-background-color);
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            transition: background-color .2s ease;
         }
 
         .ping-notification-media [class*="spoilerContent"],
@@ -749,6 +767,7 @@ module.exports = class PingNotification {
     }
 
     async messageThreadCreateHandler(event) {
+        if (!this.settings.enableThreadNotifications) return;
         const channel = ChannelStore.getChannel(event.channel.id);
         const parentChannel = ChannelStore.getChannel(channel.parent_id);
         let author = UserStore.getUser(event.channel.ownerId);
@@ -994,7 +1013,8 @@ module.exports = class PingNotification {
 
         sortedNotifications.forEach((notification) => {
             const height = notification.offsetHeight;
-            notification.style.transition = 'all 0.1s ease-in-out';
+            const transitionDuration = this.settings.readjustAnimationDuration / 1000;
+            notification.style.transition = `all ${transitionDuration}s ease-in-out`;
             notification.style.position = 'fixed';
 
             if (isTop) {
@@ -1528,7 +1548,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
                     style: {
                         fontSize: `${headerFontSize}px`,
                         fontWeight: 'bold',
-                        color: settings.coloredUsernames && roleColor ? roleColor : 'var(--header-primary)',
+                        color: settings.coloredUsernames && roleColor ? roleColor : 'var(--header-base-low)',
                         marginBottom: `${Math.round(2 * dynamicScale)}px`
                     }
                 }, displayName),
@@ -1555,8 +1575,9 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: '50%',
-                    backgroundColor: 'var(--background-primary)',
-                    color: 'var(--text-normal)',
+                    opacity: '0.8',
+                    backgroundColor: 'var(--background-base-low)',
+                    color: 'var(--text-default)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
 
@@ -1782,7 +1803,7 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
-                    backgroundColor: 'var(--background-primary)',
+                    backgroundColor: 'var(--background-base-low)',
                     borderRadius: '10px',
                     padding: '2px 6px',
                     overflow: 'visible'
@@ -1796,7 +1817,7 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
                         opacity: shouldShowControl ? 1 : 0,
                         transform: shouldShowControl ? 'translateX(0)' : 'translateX(10px)',
                         transition: 'opacity 0.2s ease, transform 0.2s ease, color 0.2s ease',
-                        color: localPause ? progressColorString : 'var(--text-normal)',
+                        color: localPause ? progressColorString : 'var(--text-default)',
                         width: '14px',
                         height: '14px'
                     }

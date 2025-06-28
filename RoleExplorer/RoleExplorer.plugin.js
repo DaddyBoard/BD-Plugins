@@ -2,7 +2,7 @@
 * @name RoleExplorer
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.0.2
+* @version 1.0.3
 * @description View the members of roles in a popout. Remake of RoleMembers by Zerebos.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -226,7 +226,7 @@ module.exports = class RoleExplorer {
                                 display: "flex",
                                 alignItems: "center",
                                 padding: "12px",
-                                backgroundColor: "var(--background-secondary)",
+                                backgroundColor: "var(--background-base-lower)",
                                 borderRadius: "8px",
                                 cursor: "pointer",
                                 transition: "background-color 0.2s",
@@ -237,7 +237,7 @@ module.exports = class RoleExplorer {
                                 e.currentTarget.querySelector(".copy-icon").style.opacity = 1;
                             },
                             onMouseLeave: e => {
-                                e.currentTarget.style.backgroundColor = "var(--background-secondary)";
+                                e.currentTarget.style.backgroundColor = "var(--background-base-lower)";
                                 e.currentTarget.querySelector(".copy-icon").style.opacity = 0;
                             },
                             onClick: (e) => {
@@ -332,7 +332,7 @@ module.exports = class RoleExplorer {
                             display: "flex",
                             alignItems: "center",
                             padding: "12px",
-                            backgroundColor: "var(--background-secondary)",
+                            backgroundColor: "var(--background-base-lower)",
                             borderRadius: "8px",
                             cursor: "pointer",
                             transition: "background-color 0.2s"
@@ -342,7 +342,7 @@ module.exports = class RoleExplorer {
                             e.currentTarget.querySelector(".copy-icon").style.opacity = 1;
                         },
                         onMouseLeave: e => {
-                            e.currentTarget.style.backgroundColor = "var(--background-secondary)";
+                            e.currentTarget.style.backgroundColor = "var(--background-base-lower)";
                             e.currentTarget.querySelector(".copy-icon").style.opacity = 0;
                         },
                         onClick: (e) => {
@@ -448,7 +448,7 @@ module.exports = class RoleExplorer {
             }, React.createElement("div", {
                 onClick: e => e.stopPropagation(),
                 style: {
-                    backgroundColor: "var(--background-primary)",
+                    backgroundColor: "var(--background-base-low)",
                     borderRadius: "8px",
                     width: "800px",
                     maxHeight: "80vh",
@@ -459,7 +459,7 @@ module.exports = class RoleExplorer {
                 React.createElement("div", {
                     style: {
                         padding: "16px",
-                        borderBottom: "1px solid var(--background-modifier-accent)",
+                        borderBottom: "1px solid var(--app-border-frame)",
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center"
@@ -509,7 +509,7 @@ module.exports = class RoleExplorer {
                             }, "›"),
                             React.createElement("span", {
                                 style: {
-                                    color: "var(--header-primary)",
+                                    color: "var(--header-base-low)",
                                     fontSize: "20px"
                                 }
                             }, selectedRole.name || "Roles")
@@ -548,10 +548,10 @@ module.exports = class RoleExplorer {
                     style: {
                         width: "200px",
                         padding: "4px 8px",
-                        backgroundColor: "var(--background-secondary)",
+                        backgroundColor: "var(--background-base-lower)",
                         border: "none",
                         borderRadius: "4px",
-                        color: "var(--text-normal)",
+                        color: "var(--text-default)",
                         fontSize: "13px",
                         marginBottom: "8px",
                         height: "24px"
