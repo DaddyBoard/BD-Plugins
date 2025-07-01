@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.2.1
+ * @version 8.2.2
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -35,6 +35,7 @@ const MessageActions = BdApi.Webpack.getByKeys("fetchMessage", "deleteMessage");
 const hasThreadElement = BdApi.Webpack.getBySource("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage").hasThread;
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const messageReferenceSelectors = BdApi.Webpack.getByKeys("messageSpine", "repliedMessageClickableSpine");
+const GuildRoleStore = Webpack.getStore("GuildRoleStore");
 const ChannelAckModule = (() => {
     const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
     const module = BdApi.Webpack.getModule((e, m) => filter(BdApi.Webpack.modules[m.id]));
@@ -57,19 +58,11 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 const config = {
     changelog: [
         {
-            "title": "8.2.1 additions",
-            "type": "added",
-            "items": [
-                "Added a new setting to adjust the animation duration of the notifications when they are readjusted (like when you close one, and they all move up/down). You'll find this in `Advanced Settings` category.",
-            ]
-        },
-        {
-            "title": "8.2.1 small fixes",
+            "title": "8.2.2 fixes",
             "type": "fixed",
             "items": [
-                "Fixed the toggle for `Thread Notifications`so it now actually disables/enables the feature.",
-                "Updated css to use the new discord css variables.",
-                ]
+                "Store changes, fixed getRoles stuff.",
+            ]
         }
     ],
     settings: [
@@ -1302,8 +1295,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
 
     const roleColor = React.useMemo(() => {
         if (!guild || !member || !member.roles) return null;
-        const getRoles = Webpack.getModule(m => m.getRole);
-        const guildRoles = getRoles.getRoles(guild.id);
+        const guildRoles = GuildRoleStore.getRoles(guild.id);
         if (!guildRoles) return null;
         
         const roles = member.roles

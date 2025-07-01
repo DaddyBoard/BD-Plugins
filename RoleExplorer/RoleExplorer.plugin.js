@@ -2,7 +2,7 @@
 * @name RoleExplorer
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.0.3
+* @version 1.0.4
 * @description View the members of roles in a popout. Remake of RoleMembers by Zerebos.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -17,6 +17,7 @@ const GuildStore = BdApi.Webpack.getStore("GuildStore");
 const SelectedGuildStore = BdApi.Webpack.getStore("SelectedGuildStore");
 const UserStore = BdApi.Webpack.getStore("UserStore");
 const UserProfileModal = BdApi.Webpack.getByKeys('openUserProfileModal');
+const GuildRoleStore = BdApi.Webpack.getStore("GuildRoleStore");
 
 module.exports = class RoleExplorer {
 
@@ -111,7 +112,7 @@ module.exports = class RoleExplorer {
     }
 
     getRoles(guild) {
-        return guild?.roles ?? GuildStore?.getRoles(guild?.id);
+        return guild?.roles ?? GuildRoleStore?.getRoles(guild?.id);
     }
 
     showRolePopout(guildId, guildName, roleId, roleName) {  

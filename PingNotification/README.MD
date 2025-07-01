@@ -8,12 +8,14 @@ A lightweight BetterDiscord plugin to display in-app notifications that focuses 
 
 ## 🚀 Features
 
-- In-app notifications for mentions, DMs, and in-line replies
-- Customizable server-specific notifications
-- User and channel blocking capabilities
+- In-app notifications for all native desktop notifications
 - Privacy mode for content protection
 - Swipe to close notifications
-- Hide notifications when you are in Do Not Disturb
+- Advanced Customization
+- Keyword tracking
+- Pin / Auto-Pin notifications on AFK
+- Read on Close
+- And much, much, MUCH more.
 
 ## 🔧 Default Operation
 
@@ -32,7 +34,7 @@ And much more!
 
 ## 🐛 Known Issues
 
-- Some rare forms of messages dont display (like the default discord messages when someone joins a discord server `Glad you're here, person!`)
+- None :P
 
 If you encounter any problems, please [open an issue](https://github.com/DaddyBoard/BD-Plugins/issues).
 
