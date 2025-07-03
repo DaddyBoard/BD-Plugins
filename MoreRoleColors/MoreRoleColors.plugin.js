@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.12
+* @version 1.2.13
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -14,7 +14,7 @@ const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
 const TypingStore = getStore("TypingStore");
-const TypingModule = getByStrings(".colors.INTERACTIVE_NORMAL).hex(),activeTextColor", { defaultExport: false });
+const TypingModule = BdApi.Webpack.getBySource('activityInviteEducationActivity')
 const [MentionModule, key] = getWithKey(Filters.byStrings('USER_MENTION',"getNickname", "inlinePreview"));
 const ChannelStore = getStore("ChannelStore");
 const UserStore = getStore("UserStore");
@@ -27,10 +27,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "1.2.12 Fixed",
+            "title": "1.2.13 Fixed",
             "type": "fixed",
             "items": [
-                "Store changes, fixed role headers coloring not working (again)."
+                "Discord changing things again... typing indicator fixed."
             ]
         }
     ],
@@ -317,7 +317,7 @@ module.exports = class MoreRoleColors {
     patchTypingUsers() {        
         const cache = new WeakMap();
 
-        Patcher.after("MoreRoleColors-typingUsers", TypingModule, "Z", (that, args, res) => {
+        Patcher.after("MoreRoleColors-typingUsers", TypingModule, "ZP", (that, args, res) => {
             let newType = cache.get(res.type);
 
             if (!newType) {
