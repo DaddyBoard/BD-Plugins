@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.2.2
+ * @version 8.3.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -36,6 +36,7 @@ const hasThreadElement = BdApi.Webpack.getBySource("hasThread", "nitroAuthorBadg
 const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
 const messageReferenceSelectors = BdApi.Webpack.getByKeys("messageSpine", "repliedMessageClickableSpine");
 const GuildRoleStore = Webpack.getStore("GuildRoleStore");
+const PresenceStore = Webpack.getStore("PresenceStore");
 const ChannelAckModule = (() => {
     const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
     const module = BdApi.Webpack.getModule((e, m) => filter(BdApi.Webpack.modules[m.id]));
@@ -58,10 +59,11 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 const config = {
     changelog: [
         {
-            "title": "8.2.2 fixes",
-            "type": "fixed",
+            "title": "8.3.0",
+            "type": "added",
             "items": [
-                "Store changes, fixed getRoles stuff.",
+                "Added `Override DND` setting. This allows PingNotification to show notifications even when your status is set to Do Not Disturb.",
+                "Fixed `Thread Notifications` and `Reaction Notifications` bypassing your DND status. These two features will now respect your DND status, but can also overridable by the `Override DND` setting, mentioned above.",
             ]
         }
     ],
@@ -115,11 +117,16 @@ const config = {
                     value: false
                 },
                 {
-                    type: "switch",
-                    id: "hideDND",
-                    name: "Hide When DND",
-                    note: "Hide all notifications when your status is set to Do Not Disturb",
-                    value: false
+                    type: "dropdown",
+                    id: "overrideDND",
+                    name: "Override Do Not Disturb",
+                    note: "Show notifications even when your status is set to Do Not Disturb",
+                    value: "off",
+                    options: [
+                        { label: "Off", value: "off" },
+                        { label: "On", value: "on" },
+                        { label: "On + Sound", value: "onWithSound" }
+                    ]
                 },
                 {
                     type: "switch",
@@ -434,7 +441,6 @@ module.exports = class PingNotification {
             disableMediaInteraction: false,
             showTimer: true,
             usernameOrDisplayName: true,
-            hideDND: false,
             closeOnRead: true,
             useFriendNicknames: true,
             hideOrangeBorderOnMentions: true,
@@ -454,7 +460,8 @@ module.exports = class PingNotification {
             noLongerAFKBehavior: "doNothing",
             pinOnWindowNotVisible: false,
             noLongerWindowNotVisible: "unpinAll",
-            readjustAnimationDuration: 100
+            readjustAnimationDuration: 100,
+            overrideDND: "off"
         };
         this.settings = this.loadSettings();
         this.activeNotifications = [];
@@ -760,6 +767,13 @@ module.exports = class PingNotification {
     }
 
     async messageThreadCreateHandler(event) {
+        const currentUser = UserStore.getCurrentUser();
+        const presence = PresenceStore.getStatus(currentUser.id);
+
+        if (presence.status === "dnd" && this.settings.overrideDND === "off") {
+            return;
+        }
+
         if (!this.settings.enableThreadNotifications) return;
         const channel = ChannelStore.getChannel(event.channel.id);
         const parentChannel = ChannelStore.getChannel(channel.parent_id);
@@ -785,6 +799,12 @@ module.exports = class PingNotification {
 
     async onReactionReceived(event) {
         const currentUser = UserStore.getCurrentUser();
+        const presence = PresenceStore.getStatus(currentUser.id);
+
+        if (presence.status === "dnd" && this.settings.overrideDND === "off") {
+            return;
+        }
+
         let reacter = UserStore.getUser(event.userId);
         if (!reacter) {
             reacter = await UserFetchModule.fetchUser(event.userId);
@@ -820,7 +840,11 @@ module.exports = class PingNotification {
     }
 
     shouldNotify(message, channel, currentUser) {
-        const shouldNotifyDiscordModule = NotificationUtils(message, message.channel_id, false);
+        let overrideStatus = false;
+        if (this.settings.overrideDND === "on" || this.settings.overrideDND === "onWithSound") {
+            overrideStatus = true;
+        }
+        const shouldNotifyDiscordModule = NotificationUtils(message, message.channel_id, false, overrideStatus);
         let keywordMatch = null;
 
         if (this.settings.enableKeywordNotifications && this.settings.notificationKeywords && 
@@ -856,6 +880,9 @@ module.exports = class PingNotification {
         }
 
         if (shouldNotifyDiscordModule || keywordMatch) {
+            if (this.settings.overrideDND === "onWithSound") {
+                NotificationSoundModule.playNotificationSound("message1", 0.4);
+            }
             return { 
                 notify: true,
                 isKeywordMatch: !!keywordMatch,
