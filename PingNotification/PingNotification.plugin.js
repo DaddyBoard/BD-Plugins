@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.3.0
+ * @version 8.3.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -59,11 +59,10 @@ const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getState
 const config = {
     changelog: [
         {
-            "title": "8.3.0",
+            "title": "8.3.1",
             "type": "added",
             "items": [
-                "Added `Override DND` setting. This allows PingNotification to show notifications even when your status is set to Do Not Disturb.",
-                "Fixed `Thread Notifications` and `Reaction Notifications` bypassing your DND status. These two features will now respect your DND status, but can also overridable by the `Override DND` setting, mentioned above.",
+                "Fixed issues with `Pin on AFK` not pausing notifications created **after** you went AFK. All notifications spawned or on-screen at the time of going AFK will now pause properly."
             ]
         }
     ],
@@ -1702,32 +1701,30 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
 
 function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
     const [remainingTime, setRemainingTime] = React.useState(duration);
-    const [localPause, setLocalPause] = React.useState(false);
     const [isHovered, setIsHovered] = React.useState(false);
-    
-    if (settings.pinOnAFK && settings.showTimer) {
-        const isAFK = useStateFromStores([IdleStore], () => IdleStore.isAFK());
-        
-        React.useEffect(() => {
-            if (isAFK) {
-                setLocalPause(true);
-            } else if (settings.noLongerAFKBehavior === "unpinAll") {
-                setLocalPause(false);
-            }
-        }, [isAFK]);
-    }
+    const [manualPause, setManualPause] = React.useState(false);
 
-    if (settings.pinOnWindowNotVisible && settings.showTimer) {
-        const isWindowVisible = useStateFromStores([WindowStore], () => WindowStore.isVisible());
-        React.useEffect(() => {
-            if (!isWindowVisible) {
-                setLocalPause(true);
-            } else if (settings.noLongerWindowNotVisible === "unpinAll") {
-                setLocalPause(false);
-            }
-        }, [isWindowVisible]);
-    }
-    
+    const isAFK = settings.pinOnAFK && settings.showTimer ?
+        useStateFromStores([IdleStore], () => IdleStore.isAFK()) : false;
+    const isWindowVisible = settings.pinOnWindowNotVisible && settings.showTimer ?
+        useStateFromStores([WindowStore], () => WindowStore.isVisible()) : true;
+
+    const shouldBePausedByAFK = settings.pinOnAFK && settings.showTimer && isAFK;
+    const shouldBePausedByWindow = settings.pinOnWindowNotVisible && settings.showTimer && !isWindowVisible;
+    const localPause = manualPause || shouldBePausedByAFK || shouldBePausedByWindow;
+
+    React.useEffect(() => {
+        if (settings.pinOnAFK && settings.showTimer && !isAFK && settings.noLongerAFKBehavior === "unpinAll") {
+            setManualPause(false);
+        }
+    }, [isAFK, settings.pinOnAFK, settings.showTimer, settings.noLongerAFKBehavior]);
+
+    React.useEffect(() => {
+        if (settings.pinOnWindowNotVisible && settings.showTimer && isWindowVisible && settings.noLongerWindowNotVisible === "unpinAll") {
+            setManualPause(false);
+        }
+    }, [isWindowVisible, settings.pinOnWindowNotVisible, settings.showTimer, settings.noLongerWindowNotVisible]);
+
     React.useEffect(() => {
         let interval;
         if (!isPaused && !localPause) {
@@ -1772,7 +1769,7 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
 
     const toggleLocalPause = (e) => {
         e.stopPropagation();
-        setLocalPause(!localPause);
+        setManualPause(!manualPause);
     };
 
     const progressColor = getProgressColor();
