@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.3.1
+ * @version 8.4.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -55,9 +55,26 @@ const constructMessageObj = Webpack.getModule(Webpack.Filters.byStrings("message
 
 const ChannelConstructor = Webpack.getModule(Webpack.Filters.byPrototypeKeys("addCachedMessages"));
 const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
+const appSidePanelSelectors = BdApi.Webpack.getBySource("appAsidePanelWrapper", "app");
+
+if (!appSidePanelSelectors) {
+    UI.showNotice("PingNotification ERROR: Could not find the appSidePanelSelectors module. Please report this on the Github page!", { type: 'error' });
+}
+
+const { appAsidePanelWrapper, app } = appSidePanelSelectors;
+const container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
+const appElem = container ? container.querySelector(`.${app}`) : null;
 
 const config = {
     changelog: [
+        {
+            "title": "8.4.0",
+            "type": "added",
+            "items": [
+                "Finally solved compatibility issues with `ChannelTabs`. The two plugins will now work together nicely, and you can now click the close button on notifications when they overlap with ChannelTabs elements.",
+                "Along side this fix, I was finally able to solve the z-index issues. Notifications will now appear above the Voicechat-chat popout properly, and now sit behind modals (like img modals, confirmation modals, etc)."
+            ]
+        },
         {
             "title": "8.3.1",
             "type": "added",
@@ -548,6 +565,7 @@ module.exports = class PingNotification {
             transform: translateZ(0);
             opacity: 0;
             z-index: var(--ping-notification-z-index);
+            -webkit-app-region: no-drag;
         }
 
         .ping-notification.show {
@@ -945,7 +963,7 @@ module.exports = class PingNotification {
         const isTestNotification = message.id === "0";
         notificationElement.isTestNotification = isTestNotification;
         
-        notificationElement.style.setProperty('--ping-notification-z-index', isTestNotification ? '1003' : '1003');
+        notificationElement.style.setProperty('--ping-notification-z-index', isTestNotification ? '1003' : '1002');
 
         const root = createRoot(notificationElement);
         root.render(
@@ -984,8 +1002,19 @@ module.exports = class PingNotification {
         notificationElement.root = root;
 
         this.activeNotifications.push(notificationElement);
-        document.body.prepend(notificationElement);
-        
+
+        if (container) {
+            if (appElem && appElem.nextSibling) {
+                container.insertBefore(notificationElement, appElem.nextSibling);
+            } else if (appElem) {
+                container.appendChild(notificationElement);
+                console.log("PingNotification: Imperfect insert location. Report to DaddyBoard please!");
+            } else {
+                container.appendChild(notificationElement);
+                console.log("PingNotification: fallback insert location. Report to DaddyBoard please!");
+            }
+        }
+
         void notificationElement.offsetHeight;
         notificationElement.classList.add('show');
         
@@ -995,12 +1024,12 @@ module.exports = class PingNotification {
     }
 
     removeNotification(notificationElement) {
-        if (document.body.contains(notificationElement)) {
+        if (container && container.contains(notificationElement)) {
             if (this.settings.readChannelOnClose && notificationElement.manualClose && !notificationElement.isTestNotification) {
                 ChannelAckModule(notificationElement.channelId);
             }
             notificationElement.root.unmount();
-            document.body.removeChild(notificationElement);
+            container.removeChild(notificationElement);
             this.activeNotifications = this.activeNotifications.filter(n => n !== notificationElement);
             this.adjustNotificationPositions();
             if (notificationElement.isTestNotification && this.activeNotifications.filter(n => n.isTestNotification).length === 0) {
@@ -1011,9 +1040,9 @@ module.exports = class PingNotification {
 
     removeAllNotifications() {
         this.activeNotifications.forEach(notification => {
-            if (document.body.contains(notification)) {
+            if (container && container.contains(notification)) {
                 notification.root.unmount();
-                document.body.removeChild(notification);
+                container.removeChild(notification);
             }
         });
         this.activeNotifications = [];
