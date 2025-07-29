@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.4.0
+ * @version 8.4.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -62,24 +62,22 @@ if (!appSidePanelSelectors) {
 }
 
 const { appAsidePanelWrapper, app } = appSidePanelSelectors;
-const container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
-const appElem = container ? container.querySelector(`.${app}`) : null;
+let container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
+let appElem = container ? container.querySelector(`.${app}`) : null;
+
+function updateDOMReferences() {
+    container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
+    appElem = container ? container.querySelector(`.${app}`) : null;
+}
 
 const config = {
     changelog: [
         {
-            "title": "8.4.0",
+            "title": "8.4.1",
             "type": "added",
             "items": [
-                "Finally solved compatibility issues with `ChannelTabs`. The two plugins will now work together nicely, and you can now click the close button on notifications when they overlap with ChannelTabs elements.",
-                "Along side this fix, I was finally able to solve the z-index issues. Notifications will now appear above the Voicechat-chat popout properly, and now sit behind modals (like img modals, confirmation modals, etc)."
-            ]
-        },
-        {
-            "title": "8.3.1",
-            "type": "added",
-            "items": [
-                "Fixed issues with `Pin on AFK` not pausing notifications created **after** you went AFK. All notifications spawned or on-screen at the time of going AFK will now pause properly."
+                "(AGAIN)Finally solved compatibility issues with `ChannelTabs`. This time fixing PingNotification being invisible on first launch.",
+                "Fix recent discord updates breaking the plugin for server DMs."
             ]
         }
     ],
@@ -530,6 +528,14 @@ module.exports = class PingNotification {
         Dispatcher.subscribe("THREAD_CREATE", this.messageThreadCreateHandler);
         Dispatcher.subscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
         Dispatcher.subscribe("MESSAGE_ACK", this.messageAckHandler);
+        
+        const appMount = document.getElementById('app-mount');
+        if (appMount) {
+            this.domObserver = new MutationObserver(() => {
+                updateDOMReferences();
+            });
+            this.domObserver.observe(appMount, { childList: true, subtree: false });
+        }
         BdApi.DOM.addStyle("PingNotificationStyles", this.css);
     }
 
@@ -539,6 +545,9 @@ module.exports = class PingNotification {
             Dispatcher.unsubscribe("MESSAGE_ACK", this.messageAckHandler);
             Dispatcher.unsubscribe("THREAD_CREATE", this.messageThreadCreateHandler);
             Dispatcher.unsubscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
+        }
+        if (this.domObserver) {
+            this.domObserver.disconnect();
         }
         this.removeAllNotifications();
         BdApi.DOM.removeStyle("PingNotificationStyles");
@@ -1350,7 +1359,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
 
     const roleColor = React.useMemo(() => {
         if (!guild || !member || !member.roles) return null;
-        const guildRoles = GuildRoleStore.getRoles(guild.id);
+        const guildRoles = GuildRoleStore.root[guild.id].root;
         if (!guildRoles) return null;
         
         const roles = member.roles
