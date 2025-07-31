@@ -2,7 +2,7 @@
 * @name RoleExplorer
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.0.4
+* @version 1.0.5
 * @description View the members of roles in a popout. Remake of RoleMembers by Zerebos.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -112,7 +112,7 @@ module.exports = class RoleExplorer {
     }
 
     getRoles(guild) {
-        return guild?.roles ?? GuildRoleStore?.getRoles(guild?.id);
+        return guild?.roles ?? GuildRoleStore?.root[guild.id]?.root;
     }
 
     showRolePopout(guildId, guildName, roleId, roleName) {  
