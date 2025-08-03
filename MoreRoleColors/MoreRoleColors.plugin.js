@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 1.2.13
+* @version 2.0.0
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,131 +27,280 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "1.2.13 Fixed",
+            "title": "2.0.0 - Added",
+            "type": "added",
+            "items": [
+                "**__ADDED SUPPORT FOR GRADIENT ROLE COLORS!__** Tags (BOT, OP, etc) do not have gradient support because the tags are too small and look gross with it. But everything else has it.",
+                "Reorganised settings to be more logical and alphabetically sorted."
+            ]
+        },
+        {
+            "title": "2.0.0 - Fixed",
             "type": "fixed",
             "items": [
-                "Discord changing things again... typing indicator fixed."
+                "Finally fixed the audit log.",
+                "Discord update breaking role headers, fixed."
             ]
         }
     ],
     settings: [
         {
-            "type": "category", 
-            "id": "generalColoring",
-            "name": "General Coloring",
+            "type": "category",
+            "id": "accountAreaColoring",
+            "name": "Account Area",
             "collapsible": true,
             "shown": false,
             "settings": [
-                {
-                    "type": "switch",
-                    "id": "messages",
-                    "name": "Messages",
-                    "note": "Colors users text by their role color",
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.messages ?? true
-                },
-                {
-                    "type": "switch",
-                    "id": "voiceUsers", 
-                    "name": "Voice Users",
-                    "note": "Colors usernames in voice channels",
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.voiceUsers ?? true
-                },
-                {
-                    "type": "switch",
-                    "id": "speakingIndicator",
-                    "name": "Speaking Indicator",
-                    "note": "Changes opacity of voice usernames when speaking",
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.speakingIndicator ?? false
-                },
-                {
-                    "type": "switch",
-                    "id": "typingUsers",
-                    "name": "Typing Indicator",
-                    "note": "Colors usernames in typing indicators", 
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.typingUsers ?? true
-                },
                 {
                     "type": "switch",
                     "id": "accountArea",
-                    "name": "Account Area",
+                    "name": "Enable Account Area Coloring",
                     "note": "Colors your username in the account area",
                     "value": BdApi.Data.load('MoreRoleColors', 'settings')?.accountArea ?? true
-                }
-            ]
-        },
-        {
-            "type": "category",
-            "id": "mentionColoring",
-            "name": "Mention Coloring",
-            "collapsible": true,
-            "shown": false,
-            "settings": [
-                {
-                    "type": "switch",
-                    "id": "mentions",
-                    "name": "Mentions",
-                    "note": "Colors usernames in mentions",
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.mentions ?? true
                 },
                 {
                     "type": "switch",
-                    "id": "textEditor",
-                    "name": "Text Editor",
-                    "note": "Colors mentions in the text editor",
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.textEditor ?? true
+                    "id": "accountAreaGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to account area colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.accountAreaGradient ?? true
                 }
             ]
         },
         {
             "type": "category",
-            "id": "serverColoring",
-            "name": "Server Features Coloring",
+            "id": "auditLogColoring",
+            "name": "Audit Log",
             "collapsible": true,
             "shown": false,
             "settings": [
                 {
                     "type": "switch",
                     "id": "auditLog",
-                    "name": "Audit Log",
+                    "name": "Enable Audit Log Coloring",
                     "note": "Colors usernames in the audit log",
                     "value": BdApi.Data.load('MoreRoleColors', 'settings')?.auditLog ?? true
                 },
                 {
                     "type": "switch",
-                    "id": "roleHeaders",
-                    "name": "Role Headers",
-                    "note": "Colors usernames in role headers",
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.roleHeaders ?? true
-                },
-                {
-                    "type": "switch",
-                    "id": "serverProfileDisplayName",
-                    "name": "Server Profile Display Name",
-                    "note": "Colors display names in server profiles",
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.serverProfileDisplayName ?? true
+                    "id": "auditLogGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to audit log colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.auditLogGradient ?? true
                 }
             ]
         },
         {
             "type": "category",
-            "id": "profileColoring",
-            "name": "Profile Coloring",
+            "id": "mentionsColoring",
+            "name": "Mentions",
+            "collapsible": true,
+            "shown": false,
+            "settings": [
+                {
+                    "type": "switch",
+                    "id": "mentions",
+                    "name": "Enable Mentions Coloring",
+                    "note": "Colors usernames in mentions",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.mentions ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "mentionsGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to mention colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.mentionsGradient ?? true
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "id": "messagesColoring",
+            "name": "Messages",
+            "collapsible": true,
+            "shown": false,
+            "settings": [
+                {
+                    "type": "switch",
+                    "id": "messages",
+                    "name": "Enable Messages Coloring",
+                    "note": "Colors users text by their role color",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.messages ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "messagesGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to message text colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.messagesGradient ?? true
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "id": "roleHeadersColoring",
+            "name": "Role Headers",
+            "collapsible": true,
+            "shown": false,
+            "settings": [
+                {
+                    "type": "switch",
+                    "id": "roleHeaders",
+                    "name": "Enable Role Headers Coloring",
+                    "note": "Colors usernames in role headers",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.roleHeaders ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "roleHeadersGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to role header colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.roleHeadersGradient ?? true
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "id": "serverProfileDisplayNameColoring",
+            "name": "Server Profile Display Name",
+            "collapsible": true,
+            "shown": false,
+            "settings": [
+                {
+                    "type": "switch",
+                    "id": "serverProfileDisplayName",
+                    "name": "Enable Server Profile Display Name Coloring",
+                    "note": "Colors display names in server profiles",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.serverProfileDisplayName ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "serverProfileDisplayNameGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to server profile display name colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.serverProfileDisplayNameGradient ?? true
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "id": "tagsColoring",
+            "name": "Tags",
+            "collapsible": true,
+            "shown": false,
+            "settings": [
+                {
+                    "type": "switch",
+                    "id": "Tags",
+                    "name": "Enable Tags Coloring",
+                    "note": "Colors tags to match role colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.Tags ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "TagsGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to tag colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.TagsGradient ?? true
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "id": "textEditorColoring",
+            "name": "Text Editor",
+            "collapsible": true,
+            "shown": false,
+            "settings": [
+                {
+                    "type": "switch",
+                    "id": "textEditor",
+                    "name": "Enable Text Editor Coloring",
+                    "note": "Colors mentions in the text editor",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.textEditor ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "textEditorGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to text editor colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.textEditorGradient ?? true
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "id": "typingUsersColoring",
+            "name": "Typing Indicator",
+            "collapsible": true,
+            "shown": false,
+            "settings": [
+                {
+                    "type": "switch",
+                    "id": "typingUsers",
+                    "name": "Enable Typing Indicator Coloring",
+                    "note": "Colors usernames in typing indicators",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.typingUsers ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "typingUsersGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to typing indicator colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.typingUsersGradient ?? true
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "id": "userProfileColoring",
+            "name": "User Profile",
             "collapsible": true,
             "shown": false,
             "settings": [
                 {
                     "type": "switch",
                     "id": "userProfile",
-                    "name": "User Profile",
+                    "name": "Enable User Profile Coloring",
                     "note": "Colors usernames in user profiles",
                     "value": BdApi.Data.load('MoreRoleColors', 'settings')?.userProfile ?? true
                 },
                 {
                     "type": "switch",
-                    "id": "Tags",
-                    "name": "Tags",
-                    "note": "Colors tags to match role colors",
-                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.Tags ?? true
+                    "id": "userProfileGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to user profile colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.userProfileGradient ?? true
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "id": "voiceUsersColoring",
+            "name": "Voice Users",
+            "collapsible": true,
+            "shown": false,
+            "settings": [
+                {
+                    "type": "switch",
+                    "id": "voiceUsers",
+                    "name": "Enable Voice Users Coloring",
+                    "note": "Colors usernames in voice channels",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.voiceUsers ?? true
+                },
+                {
+                    "type": "switch",
+                    "id": "speakingIndicator",
+                    "name": "Enable Speaking Indicator",
+                    "note": "Changes opacity of voice usernames when speaking",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.speakingIndicator ?? false
+                },
+                {
+                    "type": "switch",
+                    "id": "voiceUsersGradient",
+                    "name": "Use Gradient Coloring",
+                    "note": "Apply gradient effect to voice user colors",
+                    "value": BdApi.Data.load('MoreRoleColors', 'settings')?.voiceUsersGradient ?? true
                 }
             ]
         }
@@ -162,16 +311,26 @@ module.exports = class MoreRoleColors {
         this.meta = meta;
         this.defaultSettings = {
             voiceUsers: true,
+            voiceUsersGradient: true,
             speakingIndicator: false,
             typingUsers: true,
+            typingUsersGradient: true,
             mentions: true,
+            mentionsGradient: true,
             accountArea: true,
+            accountAreaGradient: true,
             textEditor: true,
+            textEditorGradient: true,
             auditLog: true,
+            auditLogGradient: true,
             roleHeaders: true,
+            roleHeadersGradient: true,
             messages: false,
+            messagesGradient: false,
             userProfile: true,
+            userProfileGradient: true,
             serverProfileDisplayName: true,
+            serverProfileDisplayNameGradient: true,
             Tags: true
         };
         this.settings = this.loadSettings();
@@ -291,12 +450,59 @@ module.exports = class MoreRoleColors {
         }
     }
 
+    applyRoleStyle(element, colorObject, type) {
+        if (!type) {
+            element.style = {color: colorObject.colorString};
+            return;
+        }
+        if (!GuildStore.getGuild(SelectedGuildStore.getGuildId())?.features?.has?.("ENHANCED_ROLE_COLORS")) {
+            element.style = {color: colorObject.colorString};
+            return;
+        }
+        
+        if (colorObject.colorStrings && colorObject.colorStrings.primaryColor && colorObject.colorStrings.secondaryColor) {
+            let gradient;
+            if (colorObject.colorStrings.tertiaryColor) {
+                gradient = `linear-gradient(to right, ${colorObject.colorStrings.primaryColor} 0%, ${colorObject.colorStrings.secondaryColor} 50%, ${colorObject.colorStrings.tertiaryColor} 100%)`;
+            } else {
+                gradient = `linear-gradient(to right, ${colorObject.colorStrings.primaryColor} 0%, ${colorObject.colorStrings.secondaryColor} 100%)`;
+            }
+
+            element.style = {
+                color: "unset",
+                background: `${gradient} text`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent"
+            };
+        } else {
+            element.style = {
+                color: colorObject.colorString,
+                background: "none",
+                backgroundClip: "unset",
+                WebkitBackgroundClip: "unset",
+                WebkitTextFillColor: "unset"
+            };
+        }
+    }
+
+    getColorObjectForMember(guildId, member) {
+        if (member.colorStrings) {
+            return member;
+        }
+
+        const roles = Object.values(GuildRoleStore.root[guildId].root);
+        const matchingRole = roles.find(role => role.colorString === member.colorString);
+
+        return matchingRole || member;
+    }
+    
     patchVoiceUsers() {
         Patcher.after("MoreRoleColors-voiceUsers", VoiceUser.ZP, "render", (_, [props], res) => {
             VoiceUser.ZP.displayName = "MoreRoleColorsVoiceUser";
             if (!res?.props) return;
             
-            const member = GuildMemberStore.getMember(SelectedGuildStore.getGuildId(), props?.user?.id);
+            const guildId = SelectedGuildStore.getGuildId();
+            const member = GuildMemberStore.getMember(guildId, props?.user?.id);
             if (!member?.colorString) return;
 
             const usernameElement = Utils.findInTree(res, x => x?.className?.includes('usernameFont'), {
@@ -304,18 +510,21 @@ module.exports = class MoreRoleColors {
             });
             if (!usernameElement) return;
             
-            const isSpeaking = props?.speaking;
-            const color = member.colorString;
+            const colorObject = this.getColorObjectForMember(guildId, member);
+            this.applyRoleStyle(usernameElement, colorObject, this.settings.voiceUsersGradient);
             
-            usernameElement.style = { 
-                color: this.settings.speakingIndicator ? (isSpeaking ? color : `${color}90`) : color,
-                backfaceVisibility: "hidden" 
-            };
+            const isSpeaking = props?.speaking;
+            if (this.settings.speakingIndicator && !isSpeaking) {
+                usernameElement.style.opacity = "0.56";
+            }
+            
+            usernameElement.style.backfaceVisibility = "hidden";
         });
     }
 
     patchTypingUsers() {        
         const cache = new WeakMap();
+        const pluginInstance = this;
 
         Patcher.after("MoreRoleColors-typingUsers", TypingModule, "ZP", (that, args, res) => {
             let newType = cache.get(res.type);
@@ -346,11 +555,25 @@ module.exports = class MoreRoleColors {
 
                         if (validUserIds.length <= 3) {
                             let count = 0;
-                            typing.children[1].props.children = typing.children[1].props.children.map((m, i) => typeof m === "string" ? m : React.createElement("strong", {
-                                key: i,
-                                children: m.props.children,
-                                style: { color: GuildMemberStore.getMember(props.guildId, validUserIds[count++])?.colorString }
-                            }));
+                            typing.children[1].props.children = typing.children[1].props.children.map((m, i) => {
+                                if (typeof m === "string") return m;
+                                
+                                const member = GuildMemberStore.getMember(props.guildId, validUserIds[count++]);
+                                let elementStyle = {};
+                                
+                                if (member?.colorString) {
+                                    const colorObject = pluginInstance.getColorObjectForMember(props.guildId, member);
+                                    const tempElement = { style: {} };
+                                    pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.typingUsersGradient);
+                                    elementStyle = tempElement.style;
+                                }
+                                
+                                return React.createElement("strong", {
+                                    key: i,
+                                    children: m.props.children,
+                                    style: elementStyle
+                                });
+                            });
                         }
                     }
 
@@ -397,13 +620,26 @@ module.exports = class MoreRoleColors {
             if (!guildId) return res;
             
             const member = GuildMemberStore.getMember(guildId, props.userId);
+            if (!member?.colorString) return res;
+
+            const colorObject = this.getColorObjectForMember(guildId, member);
             
             const original = res.props.children.props.children;
             res.props.children.props.children = (props, context) => {
-                
                 const ret = original(props, context);
                 if (ret?.props) {
-                    ret.props.color = member?.colorString ? parseInt(member.colorString.slice(1), 16) : undefined;
+                    ret.props.color = parseInt(member.colorString.slice(1), 16);
+                    
+                    if (this.settings.mentionsGradient && 
+                        GuildStore.getGuild(guildId)?.features?.has?.("ENHANCED_ROLE_COLORS") &&
+                        colorObject.colorStrings && 
+                        colorObject.colorStrings.primaryColor && colorObject.colorStrings.secondaryColor) {
+                        ret.props.roleColors = {
+                            primaryColor: colorObject.colorStrings.primaryColor,
+                            secondaryColor: colorObject.colorStrings.secondaryColor,
+                            tertiaryColor: colorObject.colorStrings.tertiaryColor || null
+                        };
+                    }
                 }
                 
                 return ret;
@@ -435,6 +671,7 @@ module.exports = class MoreRoleColors {
             }
 
             const renderNameTag = owner.renderNameTag;
+            const pluginInstance = this;
             owner.renderNameTag = function() {
                 const res = renderNameTag.call(this);
                 const type = res.props.children[0].props.children.type;
@@ -446,12 +683,19 @@ module.exports = class MoreRoleColors {
                     component = new Proxy(type, {
                         apply: (target, thisArg, argArray) => {
                             const res = Reflect.apply(target, thisArg, argArray);
-                            res.props.style = { 
-                                color: GuildMemberStore.getMember(
-                                    SelectedGuildStore.getGuildId(), 
-                                    this.props?.currentUser?.id || UserStore.getCurrentUser()?.id
-                                )?.colorString 
-                            };
+                            const guildId = SelectedGuildStore.getGuildId();
+                            const member = GuildMemberStore.getMember(
+                                guildId, 
+                                this.props?.currentUser?.id || UserStore.getCurrentUser()?.id
+                            );
+                            
+                            if (member?.colorString) {
+                                const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
+                                const tempElement = { style: {} };
+                                pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.accountAreaGradient);
+                                res.props.style = tempElement.style;
+                            }
+                            
                             return res;
                         },
                         get(target, key, receiver) {
@@ -477,13 +721,29 @@ module.exports = class MoreRoleColors {
 
     patchTextEditor() {
         const [ module, key ] = BdApi.Webpack.getWithKey(BdApi.Webpack.Filters.byStrings(".hidePersonalInformation", "#", "<@", ".discriminator"));
+        const pluginInstance = this;
         BdApi.Patcher.after("MoreRoleColors-textEditor", module, key, (that, [{ id, guildId }], res) => {
             return BdApi.React.cloneElement(res, {
                 children(props) {
                     const ret = res.props.children(props);
                     const member = GuildMemberStore.getMember(guildId, id);
 
-                    ret.props.children.props.color = member?.colorString && parseInt(member.colorString.slice(1), 16);
+                    if (!member?.colorString) return ret;
+
+                    const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
+
+                    ret.props.children.props.color = parseInt(member.colorString.slice(1), 16);
+
+                    if (pluginInstance.settings.textEditorGradient && 
+                        GuildStore.getGuild(guildId)?.features?.has?.("ENHANCED_ROLE_COLORS") &&
+                        colorObject.colorStrings && 
+                        colorObject.colorStrings.primaryColor && colorObject.colorStrings.secondaryColor) {
+                        ret.props.children.props.roleColors = {
+                            primaryColor: colorObject.colorStrings.primaryColor,
+                            secondaryColor: colorObject.colorStrings.secondaryColor,
+                            tertiaryColor: colorObject.colorStrings.tertiaryColor || null
+                        };
+                    }
 
                     return ret;
                 }
@@ -492,53 +752,69 @@ module.exports = class MoreRoleColors {
     }
 
     patchAuditLog() {
-        const filter = BdApi.Webpack.Filters.byStrings("renderChangeSummary(){let{expanded", "renderEntryAvatar(){let{props:{log:");
+        let AuditLogUser;
+        const pluginInstance = this;
 
-        BdApi.Webpack.waitForModule((e, m) => filter(BdApi.Webpack.modules[m.id])).then(AuditLogItem => {
-            const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
-            const cache = new WeakMap();
+        function patchAuditLogUser() {
+            BdApi.Patcher.after("MoreRoleColors-auditLog", AuditLogUser.prototype, "render", (that, args, res) => {
+                const member = GuildMemberStore.getMember(SelectedGuildStore.getGuildId(), that.props.user.id);
 
-            BdApi.Patcher.after("MoreRoleColors-auditLog", AuditLogItem.Z.prototype, "render", (instance, args, res) => {
-                if (res.type?.MoreRoleColors) return;
+                if (!member?.colorString) return;
+                
+                if (res.props?.children?.[0]?.props) {
+                    const colorObject = pluginInstance.getColorObjectForMember(SelectedGuildStore.getGuildId(), member);
+                    const tempElement = { style: {} };
+                    pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.auditLogGradient);
+                    res.props.children[0].props.style = tempElement.style;
+                }
+            });
+        }
 
-                let newType = cache.get(res.type);
-                if (!newType) {
-                    newType = class extends res.type {
-                        static MoreRoleColors = true;
-                        renderTitle() {
-                            const res = super.renderTitle();
-                            if (!res?.props?.children?.[0]) return res;
+        function attemptPatchAuditLogUser() {
+            if (AuditLogUser) {
+                patchAuditLogUser();
+                return;
+            }
+            
+            const undo = BdApi.Patcher.after("MoreRoleColors-auditLog-temp", BdApi.Webpack.getModule(m => m.displayName === "ForwardRef(FluxContainer(GuildSettingsAuditLogEntry))"), "render", (that, [props], res) => { 
+                undo();
+                
+                const a = res.type.prototype.render.call({
+                    props: res.props,
+                    memoizedGetStateFromStores: () => ({
+                        theme: "dark"
+                    })
+                });
 
-                            const user = res.props.children[0];
-                            if (!user?.type || user.type?.MoreRoleColors) return res;
+                const { render } = a.type;
+                a.type = {
+                    ...a.type,
+                    render() {
+                        const ret = render.apply(this, arguments);
 
-                            let newType = cache.get(user.type);
-                            if (!newType) {
-                                newType = class extends user.type {
-                                    static MoreRoleColors = true;
-                                    render() {
-                                        const res = super.render();
-                                        if (!this.props?.user?.id) return res;
+                        const undo = BdApi.Patcher.after("MoreRoleColors-auditLog-temp2", ret.props, "children", (that, args, res) => {
+                            undo();
 
-                                        const memberColor = GuildMemberStore.getMember(instance.props.guild.id, this.props.user.id)?.colorString;
-                                        if (memberColor && res.props?.children?.[0]?.props) {
-                                            res.props.children[0].props.style = {color: memberColor};
-                                        }
-                                        return res;
-                                    }
-                                }
-                                cache.set(user.type, newType);
+                            const node = BdApi.Utils.findInTree(res, (m) => m?.type?.prototype?.render && m.props.user?.id, {
+                                walkable: [ "children", "props" ]
+                            });
+
+                            if (node?.type) {
+                                AuditLogUser = node.type;
+                                patchAuditLogUser();
                             }
-
-                            user.type = newType;
-                            return res;
-                        }
+                        });
+                        
+                        return ret;
                     }
-                    cache.set(res.type, newType);
                 }
 
-                res.type = newType;
+                return a;
             });
+        }
+
+        BdApi.Webpack.waitForModule(m => m.displayName === "ForwardRef(FluxContainer(GuildSettingsAuditLogEntry))").then(() => {
+            attemptPatchAuditLogUser();
         });
     }
 
@@ -547,18 +823,17 @@ module.exports = class MoreRoleColors {
         BdApi.Patcher.after("MoreRoleColors-roleHeaders", roleHeaderModule, "Z", (_, [props], res) => {
             if (res.props.className.includes("membersGroup")) {
                 const guildId = SelectedGuildStore.getGuildId();
-                const roles = Object.values(GuildRoleStore.getRoles(guildId));
+                const roles = Object.values(GuildRoleStore.root[guildId].root);
 
                 let roleName = res.props.children[1].props.children[0];
                 let role = roles.find(r => r.name === roleName);
-
                 if (role) {
-                    res.props.children[1].props.style = {color: role.colorString};
+                    this.applyRoleStyle(res.props.children[1].props, role, this.settings.roleHeadersGradient);
                 } else {
                     roleName = res.props.children[1].props.children[1];
                     role = roles.find(r => r.name === roleName);
                     if (role) {
-                        res.props.children[1].props.style = {color: role.colorString};
+                        this.applyRoleStyle(res.props.children[1].props, role, this.settings.roleHeadersGradient);
                     }
                 }
             }
@@ -578,8 +853,11 @@ module.exports = class MoreRoleColors {
 
             const member = GuildMemberStore.getMember(guildId, props.message.author.id);
             if (member?.colorString) {
-                if (!res.props.style) res.props.style = { color: member.colorString };
-                else res.props.style.color = member.colorString;
+                const colorObject = this.getColorObjectForMember(guildId, member);
+                if (!res.props.style) res.props.style = {};
+                const tempElement = { style: {} };
+                this.applyRoleStyle(tempElement, colorObject, this.settings.messagesGradient);
+                Object.assign(res.props.style, tempElement.style);
             }
 
             return res;
@@ -589,6 +867,7 @@ module.exports = class MoreRoleColors {
     patchUserProfile() {
         const UserProfileModule = BdApi.Webpack.getByStrings(".pronouns", "UserProfilePopoutBody", "relationshipType", { defaultExport: false });
         const cache = new WeakMap();
+        const pluginInstance = this;
 
         const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
 
@@ -609,13 +888,22 @@ module.exports = class MoreRoleColors {
 
                         const userObject = BdApi.Utils.findInTree(res,x=>x?.className?.includes('nickname'), {walkable: ['props','children']})
                         if (!userObject) return res;
-                        if (!userObject?.style) {
-                            Object.defineProperty(userObject, "style", {
-                                value: { color: member?.colorString || "#FFFFFF" },
-                                writable: true,
-                                enumerable: true,
-                                configurable: true
-                            });
+                        
+                        if (member?.colorString) {
+                            const colorObject = pluginInstance.getColorObjectForMember(displayProfile?.guildId, member);
+                            const tempElement = { style: {} };
+                            pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.userProfileGradient);
+                            
+                            if (!userObject?.style) {
+                                Object.defineProperty(userObject, "style", {
+                                    value: tempElement.style,
+                                    writable: true,
+                                    enumerable: true,
+                                    configurable: true
+                                });
+                            } else {
+                                Object.assign(userObject.style, tempElement.style);
+                            }
                         }
 
                         return res;
@@ -634,6 +922,15 @@ module.exports = class MoreRoleColors {
     patchTags() {
         const TagModule = BdApi.Webpack.getByStrings(".botTagInvert", { defaultExport: false });
 
+        function hexToRgb(hex) {
+            hex = hex.replace(/^#/, "");
+            if (hex.length === 3) {
+                hex = hex.split("").map(x => x + x).join("");
+            }
+            const num = parseInt(hex, 16);
+            return `rgb(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255})`;
+        }
+
         class TagWrapper extends BdApi.React.Component {
             constructor(props) {
                 super(props);
@@ -650,7 +947,20 @@ module.exports = class MoreRoleColors {
                 if (!username) return;
 
                 const style = username.querySelector("[style]") || username;
-                const backgroundColor = style?.style?.color;
+                let backgroundColor = style?.style?.color;
+
+                if (!backgroundColor) {
+                    const computed = window.getComputedStyle(style);
+                    let gradientColor = computed.getPropertyValue("--custom-gradient-color-1")?.trim();
+                    if (gradientColor) {
+                        if (gradientColor.startsWith("#")) {
+                            backgroundColor = hexToRgb(gradientColor);
+                        } else if (gradientColor.startsWith("rgb")) {
+                            backgroundColor = gradientColor;
+                        }
+                    }
+                }
+
                 if (!backgroundColor) return;
 
                 node.style.backgroundColor = backgroundColor;
@@ -702,6 +1012,7 @@ module.exports = class MoreRoleColors {
     patchServerProfileDisplayName() {
         const ServerProfileGuildSelector = BdApi.Webpack.getBySource(".getFlattenedGuildIds", ".getGuilds", ".guildSelectOptionIcon", "Sizes.SMOL", { defaultExport: false });
         let currentProfileGuildId = null;
+        const pluginInstance = this;
 
         Patcher.after("MoreRoleColors-ServerProfileGuildSelector", ServerProfileGuildSelector, "Z", (_, [props], res) => {
             currentProfileGuildId = res.props.children.props.guildId;
@@ -717,7 +1028,10 @@ module.exports = class MoreRoleColors {
                 const member = GuildMemberStore.getMember(currentProfileGuildId, currentUser.id);
                 
                 if (member?.colorString) {
-                    target.style = { color: member.colorString };
+                    const colorObject = pluginInstance.getColorObjectForMember(currentProfileGuildId, member);
+                    const tempElement = { style: {} };
+                    pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.serverProfileDisplayNameGradient);
+                    target.style = tempElement.style;
                 }
                 
                 return res;
