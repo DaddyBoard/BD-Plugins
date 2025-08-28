@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.4.1
+ * @version 8.5.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -73,11 +73,10 @@ function updateDOMReferences() {
 const config = {
     changelog: [
         {
-            "title": "8.4.1",
+            "title": "8.5.0",
             "type": "added",
             "items": [
-                "(AGAIN)Finally solved compatibility issues with `ChannelTabs`. This time fixing PingNotification being invisible on first launch.",
-                "Fix recent discord updates breaking the plugin for server DMs."
+                "Added a new setting (**on by default**) to auto subscribe to all servers you are in. This will fix issues where you dont get Notifications for large servers that are lazily loaded.\nHead over to PingNotification settings > Advanced > Auto Subscribe to All Servers on start to disable/enable it."
             ]
         }
     ],
@@ -396,6 +395,13 @@ const config = {
             shown: false,
             settings: [
                 {
+                    type: "switch",
+                    id: "autoSubscribeToAllServers",
+                    name: "Auto Subscribe to All Servers on start",
+                    note: "Discord recently made large servers load lazily, so this option will auto subscribe to all servers on start to ensure you don't miss any notifications",
+                    value: true
+                },
+                {
                     type: "slider",
                     id: "maxWidth",
                     name: "Notification Width",
@@ -475,7 +481,8 @@ module.exports = class PingNotification {
             pinOnWindowNotVisible: false,
             noLongerWindowNotVisible: "unpinAll",
             readjustAnimationDuration: 100,
-            overrideDND: "off"
+            overrideDND: "off",
+            autoSubscribeToAllServers: true
         };
         this.settings = this.loadSettings();
         this.activeNotifications = [];
@@ -537,6 +544,10 @@ module.exports = class PingNotification {
             this.domObserver.observe(appMount, { childList: true, subtree: false });
         }
         BdApi.DOM.addStyle("PingNotificationStyles", this.css);
+
+        if (this.settings.autoSubscribeToAllServers) {
+            this.autoSubscribeToAllServers();
+        }
     }
 
     stop() {
@@ -563,6 +574,22 @@ module.exports = class PingNotification {
         BdApi.Data.save('PingNotification', 'settings', newSettings);
     }
 
+    autoSubscribeToAllServers() {
+        const servers = GuildStore.getGuildsArray();
+        Dispatcher.dispatch({
+            "type": "GUILD_SUBSCRIPTIONS_FLUSH",
+            "subscriptions": {
+                ...(servers.reduce((acc, v) => {
+                        acc[v.id] = {
+                            "typing": true,
+                            "activities": true,
+                            "threads": true
+                        };
+                        return acc
+                    }, {}))
+            }
+        });
+    }
 
     css = `
         .ping-notification {
@@ -812,7 +839,7 @@ module.exports = class PingNotification {
         const status = UserGuildSettingsStore.getNewForumThreadsCreated(parentChannel)
         if (status) {
             const messageToConstruct = {
-                id: `PingNotification-Reaction-${Date.now()}`,
+                id: `PingNotification-Thread-${Date.now()}`,
                 channel_id: channel.id,
                 content: `:thread: ${event.channel.name}\n-# NEW THREAD CREATED`,
                 author: author,
