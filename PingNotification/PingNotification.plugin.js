@@ -76,7 +76,8 @@ const config = {
             "title": "8.5.0",
             "type": "added",
             "items": [
-                "Added a new setting (**on by default**) to auto subscribe to all servers you are in. This will fix issues where you dont get Notifications for large servers that are lazily loaded.\nHead over to PingNotification settings > Advanced > Auto Subscribe to All Servers on start to disable/enable it."
+                "Added a new setting (**OFF by default**) to auto subscribe to all servers you are in. This will fix issues where you dont get Keyword Notifications for large servers that are lazily loaded.\nHead over to PingNotification settings > Advanced > Auto Subscribe to All Servers on start to disable/enable it.",
+                "There is potential for this to cause API Spam, we are unable to confirm for sure, but I have been testing this version for several weeks now, along with another user who is in 130+ large servers and he has been fine, but just a warning that if you __do not need to use it, don't__."
             ]
         }
     ],
@@ -482,7 +483,7 @@ module.exports = class PingNotification {
             noLongerWindowNotVisible: "unpinAll",
             readjustAnimationDuration: 100,
             overrideDND: "off",
-            autoSubscribeToAllServers: true
+            autoSubscribeToAllServers: false
         };
         this.settings = this.loadSettings();
         this.activeNotifications = [];
