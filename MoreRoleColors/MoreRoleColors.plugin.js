@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.0
+* @version 2.0.1
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,19 +27,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.0 - Added",
-            "type": "added",
-            "items": [
-                "**__ADDED SUPPORT FOR GRADIENT ROLE COLORS!__** Tags (BOT, OP, etc) do not have gradient support because the tags are too small and look gross with it. But everything else has it.",
-                "Reorganised settings to be more logical and alphabetically sorted."
-            ]
-        },
-        {
-            "title": "2.0.0 - Fixed",
+            "title": "2.0.1 - Fixed",
             "type": "fixed",
             "items": [
-                "Finally fixed the audit log.",
-                "Discord update breaking role headers, fixed."
+                "Added graceful handling for rare `TagWrapper` causing a react crash."
             ]
         }
     ],
@@ -779,7 +770,7 @@ module.exports = class MoreRoleColors {
             const undo = BdApi.Patcher.after("MoreRoleColors-auditLog-temp", BdApi.Webpack.getModule(m => m.displayName === "ForwardRef(FluxContainer(GuildSettingsAuditLogEntry))"), "render", (that, [props], res) => { 
                 undo();
                 
-                const a = res.type.prototype.render.call({
+                const a = res?.type?.prototype?.render?.call({
                     props: res.props,
                     memoizedGetStateFromStores: () => ({
                         theme: "dark"
@@ -996,6 +987,7 @@ module.exports = class MoreRoleColors {
             }
 
             render() {
+                if (!this.props.tag) return null;
                 return BdApi.React.cloneElement(this.props.tag, { ref: this.tagRef });
             }
         }
