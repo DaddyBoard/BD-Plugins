@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.1
+* @version 2.0.2
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -26,6 +26,13 @@ const GuildRoleStore = getStore("GuildRoleStore");
 const config = {
     banner: "",
     changelog: [
+        {
+            "title": "2.0.2 - Fixed",
+            "type": "fixed",
+            "items": [
+                "Small discord breakage."
+            ]
+        },
         {
             "title": "2.0.1 - Fixed",
             "type": "fixed",
@@ -481,7 +488,7 @@ module.exports = class MoreRoleColors {
             return member;
         }
 
-        const roles = Object.values(GuildRoleStore.root[guildId].root);
+        const roles = Object.values(GuildRoleStore.getRolesSnapshot(guildId));
         const matchingRole = roles.find(role => role.colorString === member.colorString);
 
         return matchingRole || member;
@@ -814,7 +821,7 @@ module.exports = class MoreRoleColors {
         BdApi.Patcher.after("MoreRoleColors-roleHeaders", roleHeaderModule, "Z", (_, [props], res) => {
             if (res.props.className.includes("membersGroup")) {
                 const guildId = SelectedGuildStore.getGuildId();
-                const roles = Object.values(GuildRoleStore.root[guildId].root);
+                const roles = Object.values(GuildRoleStore.getRolesSnapshot(guildId));
 
                 let roleName = res.props.children[1].props.children[0];
                 let role = roles.find(r => r.name === roleName);
