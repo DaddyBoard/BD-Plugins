@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.5.0
+ * @version 8.5.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -72,6 +72,13 @@ function updateDOMReferences() {
 
 const config = {
     changelog: [
+        {
+            "title": "8.5.1 - Fixed",
+            "type": "added",
+            "items": [
+                "Small discord breakage."
+            ]
+        },
         {
             "title": "8.5.0",
             "type": "added",
@@ -1387,7 +1394,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
 
     const roleColor = React.useMemo(() => {
         if (!guild || !member || !member.roles) return null;
-        const guildRoles = GuildRoleStore.root[guild.id].root;
+        const guildRoles = GuildRoleStore.getRolesSnapshot(guild.id);
         if (!guildRoles) return null;
         
         const roles = member.roles
