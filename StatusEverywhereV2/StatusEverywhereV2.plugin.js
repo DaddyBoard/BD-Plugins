@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.3
+* @version 1.0.4
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -15,7 +15,7 @@ const SelectedGuildStore = Webpack.getStore("SelectedGuildStore");
 
 const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
 const MemberAreaAvatar = Webpack.getModule(x=>x && String(x?.type).includes('statusColor'),{searchExports:true})
-const useUserContextMenu = Webpack.getBySource('useHoveredMessage').wq
+const useUserContextMenu = Webpack.getBySource("getUserTag", "referencedUsernameProfile", "interactionUsernameProfile").wq
 
 const Popout = Webpack.getByStrings("Unsupported animation config:",{searchExports:true})
 const userPopout = Webpack.getByStrings('"SENDING"===', 'renderUserGuildPopout: channel should never be');
@@ -34,10 +34,10 @@ const joinedElements = avatarElement1.userAvatar + " " + avatarElement2.avatar +
 const config = {
     changelog: [
         {
-            "title": "v1.0.3",
+            "title": "v1.0.4",
             "type": "added",
             "items": [
-                "Fixed popout on chat avatars. [#38](https://github.com/DaddyBoard/BD-Plugins/issues/38), thanks [@lolpowerluke](https://github.com/lolpowerluke)!"
+                "Small filter change (thanks discord)"
             ]
         }
     ],
