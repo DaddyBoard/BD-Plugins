@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.5.1
+ * @version 8.5.2
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -55,7 +55,7 @@ const constructMessageObj = Webpack.getModule(Webpack.Filters.byStrings("message
 
 const ChannelConstructor = Webpack.getModule(Webpack.Filters.byPrototypeKeys("addCachedMessages"));
 const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
-const appSidePanelSelectors = BdApi.Webpack.getBySource("appAsidePanelWrapper", "app");
+const appSidePanelSelectors = BdApi.Webpack.getByKeys("appAsidePanelWrapper", "app");
 
 if (!appSidePanelSelectors) {
     UI.showNotice("PingNotification ERROR: Could not find the appSidePanelSelectors module. Please report this on the Github page!", { type: 'error' });
@@ -73,18 +73,10 @@ function updateDOMReferences() {
 const config = {
     changelog: [
         {
-            "title": "8.5.1 - Fixed",
+            "title": "8.5.2 - Hotfix",
             "type": "added",
             "items": [
                 "Small discord breakage."
-            ]
-        },
-        {
-            "title": "8.5.0",
-            "type": "added",
-            "items": [
-                "Added a new setting (**OFF by default**) to auto subscribe to all servers you are in. This will fix issues where you dont get Keyword Notifications for large servers that are lazily loaded.\nHead over to PingNotification settings > Advanced > Auto Subscribe to All Servers on start to disable/enable it.",
-                "There is potential for this to cause API Spam, we are unable to confirm for sure, but I have been testing this version for several weeks now, along with another user who is in 130+ large servers and he has been fine, but just a warning that if you __do not need to use it, don't__."
             ]
         }
     ],
