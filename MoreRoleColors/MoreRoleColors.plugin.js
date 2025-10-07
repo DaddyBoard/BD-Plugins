@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.2
+* @version 2.0.3
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,17 +27,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.2 - Fixed",
+            "title": "2.0.3 - Fixed",
             "type": "fixed",
             "items": [
-                "Small discord breakage."
-            ]
-        },
-        {
-            "title": "2.0.1 - Fixed",
-            "type": "fixed",
-            "items": [
-                "Added graceful handling for rare `TagWrapper` causing a react crash."
+                "Small discord breakage for text editor mentions."
             ]
         }
     ],
@@ -721,30 +714,31 @@ module.exports = class MoreRoleColors {
         const [ module, key ] = BdApi.Webpack.getWithKey(BdApi.Webpack.Filters.byStrings(".hidePersonalInformation", "#", "<@", ".discriminator"));
         const pluginInstance = this;
         BdApi.Patcher.after("MoreRoleColors-textEditor", module, key, (that, [{ id, guildId }], res) => {
+            const member = GuildMemberStore.getMember(guildId, id);
+            if (!member?.colorString) return res;
+
+            const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
+            const color = parseInt(member.colorString.slice(1), 16);
+            const innerMention = res.props.children?.props?.children;
+            
+            if (!innerMention?.props) return res;
+            
             return BdApi.React.cloneElement(res, {
-                children(props) {
-                    const ret = res.props.children(props);
-                    const member = GuildMemberStore.getMember(guildId, id);
-
-                    if (!member?.colorString) return ret;
-
-                    const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
-
-                    ret.props.children.props.color = parseInt(member.colorString.slice(1), 16);
-
-                    if (pluginInstance.settings.textEditorGradient && 
-                        GuildStore.getGuild(guildId)?.features?.has?.("ENHANCED_ROLE_COLORS") &&
-                        colorObject.colorStrings && 
-                        colorObject.colorStrings.primaryColor && colorObject.colorStrings.secondaryColor) {
-                        ret.props.children.props.roleColors = {
-                            primaryColor: colorObject.colorStrings.primaryColor,
-                            secondaryColor: colorObject.colorStrings.secondaryColor,
-                            tertiaryColor: colorObject.colorStrings.tertiaryColor || null
-                        };
-                    }
-
-                    return ret;
-                }
+                children: BdApi.React.cloneElement(res.props.children, {
+                    children: BdApi.React.cloneElement(innerMention, {
+                        ...innerMention.props,
+                        color,
+                        ...(pluginInstance.settings.textEditorGradient && 
+                            GuildStore.getGuild(guildId)?.features?.has?.("ENHANCED_ROLE_COLORS") &&
+                            colorObject.colorStrings?.primaryColor && colorObject.colorStrings?.secondaryColor && {
+                                roleColors: {
+                                    primaryColor: colorObject.colorStrings.primaryColor,
+                                    secondaryColor: colorObject.colorStrings.secondaryColor,
+                                    tertiaryColor: colorObject.colorStrings.tertiaryColor || null
+                                }
+                            })
+                    })
+                })
             });
         }); 
     }
