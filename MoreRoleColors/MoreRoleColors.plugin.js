@@ -491,7 +491,6 @@ module.exports = class MoreRoleColors {
     patchVoiceUsers() {
         Patcher.after("MoreRoleColors-voiceUsers", VoiceUser, "ZP", (_, [props], res) => {
             VoiceUser.ZP.displayName = "MoreRoleColorsVoiceUser";
-            console.log(res);
             if (!res?.props) return;
             
             const guildId = SelectedGuildStore.getGuildId();
