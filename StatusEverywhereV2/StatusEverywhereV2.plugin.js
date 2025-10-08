@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.4
+* @version 1.0.5
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -34,10 +34,10 @@ const joinedElements = avatarElement1.userAvatar + " " + avatarElement2.avatar +
 const config = {
     changelog: [
         {
-            "title": "v1.0.4",
-            "type": "added",
+            "title": "v1.0.5",
+            "type": "fixed",
             "items": [
-                "Small filter change (thanks discord)"
+                "Small discord breakage for voice chat avatars"
             ]
         }
     ],
@@ -335,7 +335,7 @@ module.exports = class StatusEverywhereV2 {
             return React.createElement(MemberAreaAvatar, avatarProps);
         };
 
-        Patcher.after("VoiceChatAvatarSE", VoiceChatAvatar.ZP, "render", (_, [props], res) => {
+        Patcher.after("VoiceChatAvatarSE", VoiceChatAvatar, "ZP", (_, [props], res) => {
             const elementArea = Utils.findInTree(res, (node) => node?.className?.includes("content__"), { walkable: ["props", "children"] });
             delete elementArea.children[1].props.style;
             elementArea.children[1].props.className = joinedElements;
