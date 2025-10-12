@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.5
+* @version 1.0.6
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -14,7 +14,9 @@ const SpeakingStore = Webpack.getStore("SpeakingStore");
 const SelectedGuildStore = Webpack.getStore("SelectedGuildStore");
 
 const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
-const MemberAreaAvatar = Webpack.getModule(x=>x && String(x?.type).includes('statusColor'),{searchExports:true})
+
+const MemberAreaAvatarFilter = Webpack.Filters.byStrings("statusColor", "isTyping");
+const MemberAreaAvatar = Webpack.getModule(x=> MemberAreaAvatarFilter(x?.type),{searchExports:true})
 const useUserContextMenu = Webpack.getBySource("getUserTag", "referencedUsernameProfile", "interactionUsernameProfile").wq
 
 const Popout = Webpack.getByStrings("Unsupported animation config:",{searchExports:true})
@@ -34,10 +36,10 @@ const joinedElements = avatarElement1.userAvatar + " " + avatarElement2.avatar +
 const config = {
     changelog: [
         {
-            "title": "v1.0.5",
+            "title": "v1.0.6",
             "type": "fixed",
             "items": [
-                "Small discord breakage for voice chat avatars"
+                "Small discord breakage (3rd time in a week, lol)"
             ]
         }
     ],
