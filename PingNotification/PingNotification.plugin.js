@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.5.2
+ * @version 8.6.0-BETA
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -10,38 +10,57 @@
 
 const { React, Webpack, ReactDOM, UI } = BdApi;
 const { createRoot } = ReactDOM;
+let liveMessages = [];
+const [
+    NotificationUtils,
+    NotificationSoundModule,
+    MessageConstructor,
+    transitionTo,
+    Dispatcher,
+    MessageActions,
+    hasThreadElementModule,
+    Message,
+    messageReferenceSelectors,
+    ChannelAckModule,
+    constructMessageObj,
+    ChannelConstructor,
+    useStateFromStores,
+    appSidePanelSelectors
+] = Webpack.getBulk(
+    { filter: Webpack.Filters.byStrings("SUPPRESS_NOTIFICATIONS", "SELF_MENTIONABLE_SYSTEM"), searchExports: true }, // NotificationUtils
+    { filter: m => m?.playNotificationSound }, // NotificationSoundModule
+    { filter: Webpack.Filters.byPrototypeKeys("addReaction") }, // MessageConstructor
+    { filter: Webpack.Filters.byStrings(["transitionTo - Transitioning to"]), searchExports: true }, // transitionTo
+    { filter: Webpack.Filters.byKeys("subscribe", "dispatch") }, // Dispatcher
+    { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
+    { filter: Webpack.Filters.bySource("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage") }, // hasThreadElementModule
+    { filter: m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:[') }, // Message
+    { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
+    { filter: Webpack.Filters.byStrings('type:"CHANNEL_ACK"'), searchExports: true }, // ChannelAckModule
+    { filter: Webpack.Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), searchExports: true }, // constructMessageObj
+    { filter: Webpack.Filters.byPrototypeKeys("addCachedMessages") }, // ChannelConstructor
+    { filter: Webpack.Filters.byStrings("getStateFromStores"), searchExports: true }, // useStateFromStores 
+    { filter: Webpack.Filters.byKeys("appAsidePanelWrapper", "app") } // appSidePanelSelectors
+);
 
-const NotificationUtils = BdApi.Webpack.getByStrings("SUPPRESS_NOTIFICATIONS", "SELF_MENTIONABLE_SYSTEM", {searchExports:true});
-if (!NotificationUtils) {
-    UI.showNotice("PingNotification ERROR: Could not find the NotificationUtils module. Please report this on the Github page!", { type: 'error' });
-}
-const UserFetchModule = Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Webpack.Filters.byStrings("USER_UPDATE", "Promise.resolve") })
-const IdleStore = Webpack.getStore("IdleStore");
-const WindowStore = Webpack.getStore("WindowStore");
-const NotificationSoundModule = Webpack.getModule(m => m?.playNotificationSound);
-const SelectedChannelStore = Webpack.getStore("SelectedChannelStore");
-const UserGuildSettingsStore = Webpack.getStore("UserGuildSettingsStore");
-const UserStore = Webpack.getStore("UserStore");
-const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
-const ChannelStore = Webpack.getStore("ChannelStore"); 
-const GuildStore = Webpack.getStore("GuildStore");
-const RelationshipStore = Webpack.getStore("RelationshipStore");
-const transitionTo = Webpack.getByStrings(["transitionTo - Transitioning to"],{searchExports:true});
-const GuildMemberStore = Webpack.getStore("GuildMemberStore");
-const Dispatcher = BdApi.Webpack.getByKeys("subscribe", "dispatch");
-const MessageStore = BdApi.Webpack.getStore("MessageStore");
-const ReferencedMessageStore = BdApi.Webpack.getStore("ReferencedMessageStore");
-const MessageActions = BdApi.Webpack.getByKeys("fetchMessage", "deleteMessage");
-const hasThreadElement = BdApi.Webpack.getBySource("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage").hasThread;
-const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
-const messageReferenceSelectors = BdApi.Webpack.getByKeys("messageSpine", "repliedMessageClickableSpine");
-const GuildRoleStore = Webpack.getStore("GuildRoleStore");
-const PresenceStore = Webpack.getStore("PresenceStore");
-const ChannelAckModule = (() => {
-    const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
-    const module = BdApi.Webpack.getModule((e, m) => filter(BdApi.Webpack.modules[m.id]));
-    return Object.values(module).find(m => m.toString().includes("type:\"CHANNEL_ACK\",channelId"));
-})();
+const UserFetchModule = BdApi.Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Webpack.Filters.byStrings("USER_UPDATE", "Promise.resolve") })
+
+const {
+    IdleStore,
+    WindowStore,
+    SelectedChannelStore,
+    UserGuildSettingsStore,
+    UserStore,
+    ChannelStore,
+    GuildStore,
+    RelationshipStore,
+    GuildMemberStore,
+    MessageStore,
+    ReferencedMessageStore,
+    GuildRoleStore,
+    PresenceStore
+} = Webpack.Stores;
+
 const updateMessageReferenceStore = (()=>{
     function getActionHandler(){
         const nodes = Dispatcher._actionHandlers._dependencyGraph.nodes;
@@ -51,19 +70,12 @@ const updateMessageReferenceStore = (()=>{
     const target = getActionHandler();
     return (message) => target({message});
 })();
-const constructMessageObj = Webpack.getModule(Webpack.Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), { searchExports: true });
-
-const ChannelConstructor = Webpack.getModule(Webpack.Filters.byPrototypeKeys("addCachedMessages"));
-const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
-const appSidePanelSelectors = BdApi.Webpack.getByKeys("appAsidePanelWrapper", "app");
-
-if (!appSidePanelSelectors) {
-    UI.showNotice("PingNotification ERROR: Could not find the appSidePanelSelectors module. Please report this on the Github page!", { type: 'error' });
-}
 
 const { appAsidePanelWrapper, app } = appSidePanelSelectors;
 let container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
 let appElem = container ? container.querySelector(`.${app}`) : null;
+
+const hasThreadElement = hasThreadElementModule?.hasThread;
 
 function updateDOMReferences() {
     container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
@@ -73,10 +85,18 @@ function updateDOMReferences() {
 const config = {
     changelog: [
         {
-            "title": "8.5.2 - Hotfix",
+            "title": "8.6.0",
             "type": "added",
             "items": [
-                "Small discord breakage."
+                "Added REGEX patterns for Keyword Tracking",
+                "Added new option to Keyword Tracking to scan entire message object or content only."
+            ]
+        },
+        {
+            "title": "8.6.0",
+            "type": "fixed",
+            "items": [
+                "Reworked the entire init phase to be more efficient and faster, thanks to new BdApi methods.",
             ]
         }
     ],
@@ -312,6 +332,17 @@ const config = {
                     value: true
                 },
                 {
+                    type: "dropdown",
+                    id: "keywordSearchScope",
+                    name: "Keyword Search Scope",
+                    note: "Choose what to search for keywords: content only (message text) or entire message object (includes author, embeds, etc.)",
+                    value: "contentOnly",
+                    options: [
+                        { label: "Content only", value: "contentOnly" },
+                        { label: "Entire Message Object", value: "entireMessage" }
+                    ]
+                },
+                {
                     type: "switch",
                     id: "showKeyword",
                     name: "Show Keyword",
@@ -323,6 +354,13 @@ const config = {
                     id: "notificationKeywords",
                     name: "Notification Keywords",
                     note: "Add keywords that will trigger notifications, separated by commas. Example: `hello, hi, hey`",
+                    value: ""
+                },
+                {
+                    type: "text",
+                    id: "regexPatterns",
+                    name: "REGEX Patterns",
+                    note: "Add REGEX patterns that will trigger notifications, separated by triple semicolons. Example: `\\b(hello|hi)\\b;;; @everyone;;; \\d{1,3},\\d{3};;; \\$\\d+\\.\\d{2}`",
                     value: ""
                 },
                 {
@@ -467,11 +505,13 @@ module.exports = class PingNotification {
             closeOnRightClick: true,
             enableKeywordNotifications: true,
             exactMatch: true,
+            keywordSearchScope: "contentOnly",
             showKeyword: true,
             simulateAudioNotification: true,
             notificationKeywords: "",
             ignoredServersKeywords: "",
             ignoredChannelsKeywords: "",
+            regexPatterns: "",
             enableReactionNotifications: true,
             simulateAudioNotificationReaction: false,
             enableThreadNotifications: true,
@@ -490,6 +530,41 @@ module.exports = class PingNotification {
 
         this.onMessageReceived = this.onMessageReceived.bind(this);
         this.messageThreadCreateHandler = this.messageThreadCreateHandler.bind(this);
+
+        if (!appSidePanelSelectors.app) {
+            UI.showNotification({
+                title: "PingNotification ERROR",
+                id: "PN-AppSidePanelSelectors-Error",
+                content: "Could not find the appSidePanelSelectors module. Plugin cannot operate without it. Please report this on the Github page!",
+                type: "error",
+                duration: Infinity,
+                actions: [
+                    {
+                        label: "Report on Github",
+                        onClick: () => {
+                            window.open(`https://github.com/DaddyBoard/BD-Plugins/issues/new?title=PingNotification%20v${this.meta.version}%3A%20appSidePanelSelectors%20filter%20broken&body=Auto-reported%20via%20button%20on%20error%20notification`, "_blank");
+                        }
+                    }
+                ]
+            });
+        }
+        if (!NotificationUtils) {
+            UI.showNotification({
+                title: "PingNotification ERROR",
+                id: "PN-NotificationUtils-Error",
+                content: "Could not find the NotificationUtils module. Plugin cannot operate without it. Please report this on the Github page!",
+                type: "error",
+                duration: Infinity,
+                actions: [
+                    {
+                        label: "Report on Github",
+                        onClick: () => {
+                            window.open(`https://github.com/DaddyBoard/BD-Plugins/issues/new?title=PingNotification%20v${this.meta.version}%3A%20NotificationUtils%20filter%20broken&body=Auto-reported%20via%20button%20on%20error%20notification`, "_blank");
+                        }
+                    }
+                ]
+            });
+        }
     }
 
     start() {
@@ -508,6 +583,14 @@ module.exports = class PingNotification {
 
             this.onMessageReceived(event);
 
+        };
+
+        this.messageUpdateHandler = (event) => {
+            if (!event?.message) return;
+            if (liveMessages.includes(event.message.id)) return;
+            const msgTime = new Date(event.message.timestamp).getTime();
+            if (Date.now() - msgTime > 5000) return;
+            this.onMessageReceived(event, true);
         };
 
         this.reactionAddHandler = (event) => {
@@ -535,7 +618,7 @@ module.exports = class PingNotification {
         Dispatcher.subscribe("THREAD_CREATE", this.messageThreadCreateHandler);
         Dispatcher.subscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
         Dispatcher.subscribe("MESSAGE_ACK", this.messageAckHandler);
-        
+        Dispatcher.subscribe("MESSAGE_UPDATE", this.messageUpdateHandler);
         const appMount = document.getElementById('app-mount');
         if (appMount) {
             this.domObserver = new MutationObserver(() => {
@@ -556,6 +639,7 @@ module.exports = class PingNotification {
             Dispatcher.unsubscribe("MESSAGE_ACK", this.messageAckHandler);
             Dispatcher.unsubscribe("THREAD_CREATE", this.messageThreadCreateHandler);
             Dispatcher.unsubscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
+            Dispatcher.unsubscribe("MESSAGE_UPDATE", this.messageUpdateHandler);
         }
         if (this.domObserver) {
             this.domObserver.disconnect();
@@ -805,17 +889,27 @@ module.exports = class PingNotification {
         }
     `;
 
-    onMessageReceived(event) {
+    onMessageReceived(event, update) {
         if (!event.message?.channel_id) return;
         if (event.message.type === 18) return;
         
         const channel = ChannelStore.getChannel(event.message.channel_id);
         const currentUser = UserStore.getCurrentUser();
-
         if (!channel || event.message.author.id === currentUser.id) return;
+
         const notifyResult = this.shouldNotify(event.message, channel, currentUser);
-        if (notifyResult && (notifyResult === true || notifyResult.notify === true)) {
-            this.showNotification(event.message, channel, notifyResult);
+
+        if (!update) {
+            if (notifyResult && (notifyResult === true || notifyResult.notify === true)) {
+                this.showNotification(event.message, channel, notifyResult);
+            }
+        }
+        else {
+            console.log(notifyResult, event);
+            if (notifyResult?.isKeywordMatch == true) {
+                console.log(notifyResult);
+                this.showNotification(event.message, channel, notifyResult);
+            }
         }
     }
 
@@ -897,35 +991,78 @@ module.exports = class PingNotification {
         if (this.settings.overrideDND === "on" || this.settings.overrideDND === "onWithSound") {
             overrideStatus = true;
         }
+
         const shouldNotifyDiscordModule = NotificationUtils(message, message.channel_id, false, overrideStatus);
         let keywordMatch = null;
 
-        if (this.settings.enableKeywordNotifications && this.settings.notificationKeywords && 
+        if (this.settings.enableKeywordNotifications && 
             (!(this.settings.ignoredServersKeywords || '').includes(channel.guild_id)) && 
             (!(this.settings.ignoredChannelsKeywords || '').includes(channel.id))) {
-            const keywords = this.settings.notificationKeywords
-                .split(",")
-                .map(keyword => keyword.trim())
-                .filter(keyword => keyword.length > 0);
             
-            const hasKeywordMatch = keywords.some(keyword => {
-                if (this.settings.exactMatch) {
-                    const wordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-                    const matches = wordRegex.test(message.content);
-                    if (matches) {
-                        keywordMatch = keyword;
-                        return true;
+            let hasKeywordMatch = false;
+            
+            if (this.settings.notificationKeywords) {
+                const keywords = this.settings.notificationKeywords
+                    .split(",")
+                    .map(keyword => keyword.trim())
+                    .filter(keyword => keyword.length > 0);
+                
+                const searchTarget = this.settings.keywordSearchScope === "entireMessage" 
+                    ? JSON.stringify(message) 
+                    : message.content;
+                
+                hasKeywordMatch = keywords.some(keyword => {
+                    if (this.settings.exactMatch) {
+                        const wordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                        const matches = wordRegex.test(searchTarget);
+                        if (matches) {
+                            keywordMatch = keyword;
+                            return true;
+                        }
+                        return false;
+                    } else {
+                        const matches = searchTarget.toLowerCase().includes(keyword.toLowerCase());
+                        if (matches) {
+                            keywordMatch = keyword;
+                            return true;
+                        }
+                        return false;
                     }
-                    return false;
-                } else {
-                    const matches = message.content.toLowerCase().includes(keyword.toLowerCase());
-                    if (matches) {
-                        keywordMatch = keyword;
-                        return true;
+                });
+            }
+            
+            if (!hasKeywordMatch && this.settings.regexPatterns) {
+                const regexPatterns = this.settings.regexPatterns
+                    .split(";;;")
+                    .map(pattern => pattern.trim())
+                    .filter(pattern => pattern.length > 0);
+                
+                const searchTarget = this.settings.keywordSearchScope === "entireMessage" 
+                    ? JSON.stringify(message) 
+                    : message.content;
+                
+                hasKeywordMatch = regexPatterns.some(pattern => {
+                    try {
+                        const regex = new RegExp(pattern, 'i');
+                        const match = regex.exec(searchTarget);
+                        if (match) {
+                            keywordMatch = `${match[0]} (REGEX)`;
+                            return true;
+                        }
+                        return false;
+                    } catch (error) {
+                        console.log(`PingNotification: Caught regex error for pattern "${pattern}":`, error);
+                        BdApi.UI.showNotification({
+                            title: "PingNotification",
+                            id: `PingNotification-InvalidRegexPattern`,
+                            content: `Invalid REGEX pattern "${pattern}": ${error.message}`,
+                            type: "error",
+                            duration: 10000
+                        });
+                        return false;
                     }
-                    return false;
-                }
-            });
+                });
+            }
             
             if (hasKeywordMatch && this.settings.simulateAudioNotification && !shouldNotifyDiscordModule) {
                 NotificationSoundModule.playNotificationSound("message1", 0.4);
@@ -1056,6 +1193,7 @@ module.exports = class PingNotification {
         
         this.adjustNotificationPositions();
 
+        liveMessages.push(message.id);
         return notificationElement;
     }
 
@@ -1067,6 +1205,7 @@ module.exports = class PingNotification {
             notificationElement.root.unmount();
             container.removeChild(notificationElement);
             this.activeNotifications = this.activeNotifications.filter(n => n !== notificationElement);
+            liveMessages = liveMessages.filter(id => id !== notificationElement.messageId);
             this.adjustNotificationPositions();
             if (notificationElement.isTestNotification && this.activeNotifications.filter(n => n.isTestNotification).length === 0) {
                 this.testNotificationData = null;
