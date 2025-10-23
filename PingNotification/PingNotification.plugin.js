@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.5.2
+ * @version 8.6.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -57,10 +57,6 @@ const ChannelConstructor = Webpack.getModule(Webpack.Filters.byPrototypeKeys("ad
 const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
 const appSidePanelSelectors = BdApi.Webpack.getByKeys("appAsidePanelWrapper", "app");
 
-if (!appSidePanelSelectors) {
-    UI.showNotice("PingNotification ERROR: Could not find the appSidePanelSelectors module. Please report this on the Github page!", { type: 'error' });
-}
-
 const { appAsidePanelWrapper, app } = appSidePanelSelectors;
 let container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
 let appElem = container ? container.querySelector(`.${app}`) : null;
@@ -70,15 +66,26 @@ function updateDOMReferences() {
     appElem = container ? container.querySelector(`.${app}`) : null;
 }
 
+let liveMessages = [];
+
 const config = {
     changelog: [
         {
-            "title": "8.5.2 - Hotfix",
+            "title": "8.6.0",
             "type": "added",
             "items": [
-                "Small discord breakage."
+                "Added REGEX patterns for Keyword Tracking",
+                "Added ability to switch between Whitelist or Blacklist mode for servers and channels filtering for Keyword Tracking",
+                "Added new option to Keyword Tracking to scan entire message object or content only."
             ]
-        }
+        },
+        // {
+        //     "title": "8.6.0",
+        //     "type": "fixed",
+        //     "items": [
+        //         "Reworked the entire init phase to be more efficient and faster, thanks to new BdApi methods.",
+        //     ]
+        // }
     ],
     settings: [
         {
@@ -319,6 +326,17 @@ const config = {
                     value: true
                 },
                 {
+                    type: "dropdown",
+                    id: "keywordSearchScope",
+                    name: "Keyword Search Scope",
+                    note: "Choose what to search for keywords: content only (message text) or entire message object (includes author, embeds, etc.)",
+                    value: "contentOnly",
+                    options: [
+                        { label: "Content only", value: "contentOnly" },
+                        { label: "Entire Message Object", value: "entireMessage" }
+                    ]
+                },
+                {
                     type: "text",
                     id: "notificationKeywords",
                     name: "Notification Keywords",
@@ -327,17 +345,35 @@ const config = {
                 },
                 {
                     type: "text",
+                    id: "regexPatterns",
+                    name: "REGEX Patterns",
+                    note: "Add REGEX patterns that will trigger notifications, separated by triple semicolons. Example: `\\b(hello|hi)\\b;;; @everyone;;; \\d{1,3},\\d{3};;; \\$\\d+\\.\\d{2}`",
+                    value: ""
+                },
+                {
+                    type: "text",
                     id: "ignoredServersKeywords",
                     name: "Ignored Servers for Keywords",
-                    note: "Add servers you want to ignore keywords from, separated by commas. Example: `1234567890, 1234567891`",
+                    note: "",
                     value: ""
                 },
                 {
                     type: "text",
                     id: "ignoredChannelsKeywords",
-                    name: "Ignored Channels for Keywords",
-                    note: "Add channels you want to ignore keywords from, separated by commas. Example: `1234567890, 1234567891`",
+                    name: `Ignored Channels for Keywords`,
+                    note: "",
                     value: ""
+                },
+                {
+                    type: "dropdown",
+                    id: "keywordFilterMode",
+                    name: "Keyword Filter Mode",
+                    note: "Blacklist = Ignore servers and channels, Whitelist = Only show servers and channels",
+                    options: [
+                        { label: "Blacklist (default)", value: "blacklist" },
+                        { label: "Whitelist", value: "whitelist" }
+                    ],
+                    value: "blacklist"
                 }
             ]
         },
@@ -398,7 +434,7 @@ const config = {
                     type: "switch",
                     id: "autoSubscribeToAllServers",
                     name: "Auto Subscribe to All Servers on start",
-                    note: "Discord recently made large servers load lazily, so this option will auto subscribe to all servers on start to ensure you don't miss any notifications",
+                    note: "Discord recently made large servers load lazily, so this option will auto subscribe to all servers on start to ensure you don't miss any notifications. UNKNOWN IF THIS IS ENTIRELY SAFE. USE AT YOUR OWN RISK.",
                     value: true
                 },
                 {
@@ -465,13 +501,16 @@ module.exports = class PingNotification {
             useFriendNicknames: true,
             hideOrangeBorderOnMentions: true,
             closeOnRightClick: true,
-            enableKeywordNotifications: true,
+            enableKeywordNotifications: false,
             exactMatch: true,
+            keywordSearchScope: "contentOnly",
             showKeyword: true,
             simulateAudioNotification: true,
             notificationKeywords: "",
             ignoredServersKeywords: "",
             ignoredChannelsKeywords: "",
+            keywordFilterMode: "blacklist",
+            regexPatterns: "",
             enableReactionNotifications: true,
             simulateAudioNotificationReaction: false,
             enableThreadNotifications: true,
@@ -490,7 +529,16 @@ module.exports = class PingNotification {
 
         this.onMessageReceived = this.onMessageReceived.bind(this);
         this.messageThreadCreateHandler = this.messageThreadCreateHandler.bind(this);
+
+        if (!appSidePanelSelectors.app) {
+            UI.showNotice("PingNotification ERROR: Could not find the appSidePanelSelectors module. Please report this on the Github page!", { type: 'error' });
+        }
+        if (!NotificationUtils) {
+            UI.showNotice("PingNotification ERROR: Could not find the NotificationUtils module. Please report this on the Github page!", { type: 'error' });
+        }
     }
+
+    
 
     start() {
         const lastVersion = BdApi.Data.load('PingNotification', 'lastVersion');
@@ -508,6 +556,14 @@ module.exports = class PingNotification {
 
             this.onMessageReceived(event);
 
+        };
+
+        this.messageUpdateHandler = (event) => {
+            if (!event?.message) return;
+            if (liveMessages.includes(event.message.id)) return;
+            const msgTime = new Date(event.message.timestamp).getTime();
+            if (Date.now() - msgTime > 5000) return;
+            this.onMessageReceived(event, true);
         };
 
         this.reactionAddHandler = (event) => {
@@ -535,7 +591,7 @@ module.exports = class PingNotification {
         Dispatcher.subscribe("THREAD_CREATE", this.messageThreadCreateHandler);
         Dispatcher.subscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
         Dispatcher.subscribe("MESSAGE_ACK", this.messageAckHandler);
-        
+        Dispatcher.subscribe("MESSAGE_UPDATE", this.messageUpdateHandler);
         const appMount = document.getElementById('app-mount');
         if (appMount) {
             this.domObserver = new MutationObserver(() => {
@@ -556,6 +612,7 @@ module.exports = class PingNotification {
             Dispatcher.unsubscribe("MESSAGE_ACK", this.messageAckHandler);
             Dispatcher.unsubscribe("THREAD_CREATE", this.messageThreadCreateHandler);
             Dispatcher.unsubscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
+            Dispatcher.unsubscribe("MESSAGE_UPDATE", this.messageUpdateHandler);
         }
         if (this.domObserver) {
             this.domObserver.disconnect();
@@ -805,17 +862,25 @@ module.exports = class PingNotification {
         }
     `;
 
-    onMessageReceived(event) {
+    onMessageReceived(event, update) {
         if (!event.message?.channel_id) return;
         if (event.message.type === 18) return;
-        
+
         const channel = ChannelStore.getChannel(event.message.channel_id);
         const currentUser = UserStore.getCurrentUser();
-
         if (!channel || event.message.author.id === currentUser.id) return;
+
         const notifyResult = this.shouldNotify(event.message, channel, currentUser);
-        if (notifyResult && (notifyResult === true || notifyResult.notify === true)) {
-            this.showNotification(event.message, channel, notifyResult);
+
+        if (!update) {
+            if (notifyResult && (notifyResult === true || notifyResult.notify === true)) {
+                this.showNotification(event.message, channel, notifyResult);
+            }
+        }
+        else {
+            if (notifyResult?.isKeywordMatch == true) {
+                this.showNotification(event.message, channel, notifyResult);
+            }
         }
     }
 
@@ -897,35 +962,72 @@ module.exports = class PingNotification {
         if (this.settings.overrideDND === "on" || this.settings.overrideDND === "onWithSound") {
             overrideStatus = true;
         }
+
         const shouldNotifyDiscordModule = NotificationUtils(message, message.channel_id, false, overrideStatus);
         let keywordMatch = null;
 
-        if (this.settings.enableKeywordNotifications && this.settings.notificationKeywords && 
-            (!(this.settings.ignoredServersKeywords || '').includes(channel.guild_id)) && 
-            (!(this.settings.ignoredChannelsKeywords || '').includes(channel.id))) {
-            const keywords = this.settings.notificationKeywords
-                .split(",")
-                .map(keyword => keyword.trim())
-                .filter(keyword => keyword.length > 0);
+        if (this.settings.enableKeywordNotifications && 
+            ((this.settings.keywordFilterMode === "blacklist" && !(this.settings.ignoredServersKeywords || '').includes(channel.guild_id)) && 
+            (!(this.settings.ignoredChannelsKeywords || '').includes(channel.id))) || 
+            (this.settings.keywordFilterMode === "whitelist" && ((this.settings.ignoredServersKeywords || '').includes(channel.guild_id) || (this.settings.ignoredChannelsKeywords || '').includes(channel.id)))) {
             
-            const hasKeywordMatch = keywords.some(keyword => {
-                if (this.settings.exactMatch) {
-                    const wordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-                    const matches = wordRegex.test(message.content);
-                    if (matches) {
-                        keywordMatch = keyword;
-                        return true;
+            let hasKeywordMatch = false;
+            
+            if (this.settings.notificationKeywords) {
+                const keywords = this.settings.notificationKeywords
+                    .split(",")
+                    .map(keyword => keyword.trim())
+                    .filter(keyword => keyword.length > 0);
+                
+                const searchTarget = this.settings.keywordSearchScope === "entireMessage" 
+                    ? JSON.stringify(message) 
+                    : message.content;
+                
+                hasKeywordMatch = keywords.some(keyword => {
+                    if (this.settings.exactMatch) {
+                        const wordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                        const matches = wordRegex.test(searchTarget);
+                        if (matches) {
+                            keywordMatch = keyword;
+                            return true;
+                        }
+                        return false;
+                    } else {
+                        const matches = searchTarget.toLowerCase().includes(keyword.toLowerCase());
+                        if (matches) {
+                            keywordMatch = keyword;
+                            return true;
+                        }
+                        return false;
                     }
-                    return false;
-                } else {
-                    const matches = message.content.toLowerCase().includes(keyword.toLowerCase());
-                    if (matches) {
-                        keywordMatch = keyword;
-                        return true;
+                });
+            }
+            
+            if (!hasKeywordMatch && this.settings.regexPatterns) {
+                const regexPatterns = this.settings.regexPatterns
+                    .split(";;;")
+                    .map(pattern => pattern.trim())
+                    .filter(pattern => pattern.length > 0);
+                
+                const searchTarget = this.settings.keywordSearchScope === "entireMessage" 
+                    ? JSON.stringify(message) 
+                    : message.content;
+                
+                hasKeywordMatch = regexPatterns.some(pattern => {
+                    try {
+                        const regex = new RegExp(pattern, 'i');
+                        const match = regex.exec(searchTarget);
+                        if (match) {
+                            keywordMatch = `${match[0]} (REGEX)`;
+                            return true;
+                        }
+                        return false;
+                    } catch (error) {
+                        BdApi.UI.showNotice("PingNotification: Caught regex error for pattern \"${pattern}\":", { type: 'error' });
+                        return false;
                     }
-                    return false;
-                }
-            });
+                });
+            }
             
             if (hasKeywordMatch && this.settings.simulateAudioNotification && !shouldNotifyDiscordModule) {
                 NotificationSoundModule.playNotificationSound("message1", 0.4);
@@ -1056,6 +1158,7 @@ module.exports = class PingNotification {
         
         this.adjustNotificationPositions();
 
+        liveMessages.push(message.id);
         return notificationElement;
     }
 
@@ -1067,6 +1170,7 @@ module.exports = class PingNotification {
             notificationElement.root.unmount();
             container.removeChild(notificationElement);
             this.activeNotifications = this.activeNotifications.filter(n => n !== notificationElement);
+            liveMessages = liveMessages.filter(id => id !== notificationElement.messageId);
             this.adjustNotificationPositions();
             if (notificationElement.isTestNotification && this.activeNotifications.filter(n => n.isTestNotification).length === 0) {
                 this.testNotificationData = null;
@@ -1144,52 +1248,93 @@ module.exports = class PingNotification {
     }
 
     getSettingsPanel() {
-        const settingsConfig = structuredClone(config.settings);
+        const plugin = this;
         
-        settingsConfig.forEach(category => {
-            if (category.settings) {
-                category.settings.forEach(setting => {
-                    if (setting.id === 'duration') {
-                        setting.value = this.settings.duration / 1000;
-                    } else {
-                        setting.value = this.settings[setting.id];
+        return React.createElement(() => {
+            const [, forceUpdate] = React.useState({});
+            const refresh = () => forceUpdate({});
+            
+            const settingsConfig = structuredClone(config.settings);
+            
+            settingsConfig.forEach(category => {
+                if (category.settings) {
+                    category.settings.forEach(setting => {
+                        if (setting.id === 'duration') {
+                            setting.value = plugin.settings.duration / 1000;
+                        } else {
+                            setting.value = plugin.settings[setting.id];
+                        }
+                        
+                    if (setting.id === 'ignoredChannelsKeywords') {
+                        const mode = plugin.settings.keywordFilterMode === 'whitelist' ? 'Allowed' : 'Ignored';
+                        setting.name = `${mode} Channels for Keywords`;
+                        setting.note = `Add channels you want to be ${mode.toLowerCase()} for keywords from, separated by commas. Example: \`1234567890, 1234567891\``;
+                    }
+                    if (setting.id === 'ignoredServersKeywords') {
+                        const mode = plugin.settings.keywordFilterMode === 'whitelist' ? 'Allowed' : 'Ignored';
+                        setting.name = `${mode} Servers for Keywords`;
+                        setting.note = `Add servers you want to be ${mode.toLowerCase()} for keywords from, separated by commas. Example: \`1234567890, 1234567891\``;
                     }
                     
-                    if (['maxWidth', 'maxHeight', 'hideOrangeBorderOnMentions', 'showTimer', 'privacyMode', 'popupLocation', 'usernameOrDisplayName'].includes(setting.id)) {
-                        setting.onChange = (value) => {
-                            this.settings[setting.id] = value;
-                            this.saveSettings(this.settings);
-
-                            this.activeNotifications.forEach(notification => {
-                                if (notification.isTestNotification && this.testNotificationData) {
-                                    this.updateNotification(notification, this.testNotificationData.message, this.testNotificationData.channel.id, "testNotif");
-                                } else {
-                                    const channelId = notification.channelId || notification.message?.channel_id;
-                                    if (channelId) {
-                                        this.updateNotification(notification, notification.message, channelId, "testNotif");
-                                    }
-                                }
-                            });
-
-                            if (!this.activeNotifications.find(n => n.isTestNotification)) {
-                                this.showTestNotification();
-                            }
-                        };
+                    if (setting.id === 'simulateAudioNotificationReaction') {
+                        setting.disabled = !plugin.settings.enableReactionNotifications;
                     }
-                });
-            }
-        });
+                    if (setting.id === 'simulateAudioNotificationThread') {
+                        setting.disabled = !plugin.settings.enableThreadNotifications;
+                    }
+                    if (['pinOnAFK', 'noLongerAFKBehavior', 'pinOnWindowNotVisible', 'noLongerWindowNotVisible'].includes(setting.id)) {
+                        setting.disabled = !plugin.settings.showTimer;
+                    }
+                    if (['simulateAudioNotification', 'exactMatch', 'showKeyword', 'keywordSearchScope', 'notificationKeywords', 'regexPatterns', 'ignoredServersKeywords', 'ignoredChannelsKeywords', 'keywordFilterMode'].includes(setting.id)) {
+                        setting.disabled = !plugin.settings.enableKeywordNotifications;
+                    }
+                        if (['maxWidth', 'maxHeight', 'hideOrangeBorderOnMentions', 'showTimer', 'privacyMode', 'popupLocation', 'usernameOrDisplayName'].includes(setting.id)) {
+                            setting.onChange = (value) => {
+                                plugin.settings[setting.id] = value;
+                                plugin.saveSettings(plugin.settings);
 
-        return BdApi.UI.buildSettingsPanel({
-            settings: settingsConfig,
-            onChange: (category, id, value) => {
-                if (id === 'duration') {
-                    this.settings[id] = value * 1000;
-                } else {
-                    this.settings[id] = value;
+                                plugin.activeNotifications.forEach(notification => {
+                                    if (notification.isTestNotification && plugin.testNotificationData) {
+                                        plugin.updateNotification(notification, plugin.testNotificationData.message, plugin.testNotificationData.channel.id, "testNotif");
+                                    } else {
+                                        const channelId = notification.channelId || notification.message?.channel_id;
+                                        if (channelId) {
+                                            plugin.updateNotification(notification, notification.message, channelId, "testNotif");
+                                        }
+                                    }
+                                });
+
+                                if (!plugin.activeNotifications.find(n => n.isTestNotification)) {
+                                    plugin.showTestNotification();
+                                }
+                            };
+                        }
+                    });
                 }
-                this.saveSettings(this.settings);
-            }
+            });
+
+            return BdApi.UI.buildSettingsPanel({
+                settings: settingsConfig,
+                onChange: (category, id, value) => {
+                    if (id === 'duration') {
+                        plugin.settings[id] = value * 1000;
+                    } else {
+                        plugin.settings[id] = value;
+                    }
+                    if ([
+                        'keywordFilterMode',
+                        'enableReactionNotifications',
+                        'enableThreadNotifications',
+                        'showTimer',
+                        'enableKeywordNotifications',
+                        'simulateAudioNotificationReaction',
+                        'simulateAudioNotificationThread'
+                    ].includes(id)) {
+                        refresh();
+                    }
+                    plugin.saveSettings(plugin.settings);
+                }
+            });
         });
     }
 
@@ -1328,6 +1473,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
     if (!channel) {
         return null;
     }
+    
     
     const guild = channel.guild_id ? GuildStore.getGuild(channel.guild_id) : null;
     const member = guild ? GuildMemberStore.getMember(guild.id, message.author.id) : null;
