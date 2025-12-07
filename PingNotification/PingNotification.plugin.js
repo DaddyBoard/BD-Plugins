@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 8.6.0
+ * @version 9.0.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -10,33 +10,73 @@
 
 const { React, Webpack, ReactDOM, UI } = BdApi;
 const { createRoot } = ReactDOM;
+const { Patcher } = BdApi;
+const { Filters } = Webpack;
 
-const NotificationUtils = BdApi.Webpack.getByStrings("SUPPRESS_NOTIFICATIONS", "SELF_MENTIONABLE_SYSTEM", {searchExports:true});
+const [
+    NotificationUtils,
+    NotificationSoundModule,
+    MessageConstructor,
+    transitionTo,
+    Dispatcher,
+    MessageActions,
+    hasThreadElementModule,
+    Message,
+    messageReferenceSelectors,
+    PopoutModule,
+    RecentMentionsInbox,
+    trailingModule,
+    DiscordProgressBar,
+    constructMessageObj,
+    ChannelConstructor,
+    useStateFromStores,
+    appSidePanelSelectors
+] = Webpack.getBulk(
+    { filter: Webpack.Filters.byStrings("SUPPRESS_NOTIFICATIONS", "SELF_MENTIONABLE_SYSTEM"), searchExports: true }, // NotificationUtils
+    { filter: m => m?.playNotificationSound }, // NotificationSoundModule
+    { filter: Webpack.Filters.byPrototypeKeys("addReaction") }, // MessageConstructor
+    { filter: Webpack.Filters.byStrings("transitionToGuild - Transitioning to"), searchExports: true }, // transitionTo
+    { filter: Webpack.Filters.byKeys("subscribe", "dispatch") }, // Dispatcher
+    { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
+    { filter: Webpack.Filters.bySource("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage") }, // hasThreadElementModule
+    { filter: m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:[') }, // Message
+    { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
+    { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
+    { filter: Webpack.Filters.byStrings(".clearMentions(),", ".deleteRecentMention") }, // RecentMentionsInbox
+    { filter: Webpack.Filters.byKeys('bar', 'trailing') }, // trailingModule
+    { filter: Webpack.Filters.byStrings("percent", "foregroundGradientColor"), searchExports: true }, // DiscordProgressBar
+    { filter: Webpack.Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), searchExports: true }, // constructMessageObj
+    { filter: Webpack.Filters.byPrototypeKeys("addCachedMessages") }, // ChannelConstructor
+    { filter: Webpack.Filters.byStrings("getStateFromStores"), searchExports: true }, // useStateFromStores
+    { filter: Webpack.Filters.byKeys("appAsidePanelWrapper", "app") } // appSidePanelSelectors
+);
+
+const {
+    IdleStore,
+    WindowStore,
+    SelectedChannelStore,
+    UserGuildSettingsStore,
+    UserStore,
+    ChannelStore,
+    GuildStore,
+    RelationshipStore,
+    GuildMemberStore,
+    MessageStore,
+    ReferencedMessageStore,
+    GuildRoleStore,
+    PresenceStore
+} = BdApi.Webpack.Stores;
+
 if (!NotificationUtils) {
     UI.showNotice("PingNotification ERROR: Could not find the NotificationUtils module. Please report this on the Github page!", { type: 'error' });
 }
+
+const hasThreadElement = hasThreadElementModule.hasThread;
+const trailing = trailingModule.trailing;
 const UserFetchModule = Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Webpack.Filters.byStrings("USER_UPDATE", "Promise.resolve") })
-const IdleStore = Webpack.getStore("IdleStore");
-const WindowStore = Webpack.getStore("WindowStore");
-const NotificationSoundModule = Webpack.getModule(m => m?.playNotificationSound);
-const SelectedChannelStore = Webpack.getStore("SelectedChannelStore");
-const UserGuildSettingsStore = Webpack.getStore("UserGuildSettingsStore");
-const UserStore = Webpack.getStore("UserStore");
-const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
-const ChannelStore = Webpack.getStore("ChannelStore"); 
-const GuildStore = Webpack.getStore("GuildStore");
-const RelationshipStore = Webpack.getStore("RelationshipStore");
-const transitionTo = Webpack.getByStrings(["transitionTo - Transitioning to"],{searchExports:true});
-const GuildMemberStore = Webpack.getStore("GuildMemberStore");
-const Dispatcher = BdApi.Webpack.getByKeys("subscribe", "dispatch");
-const MessageStore = BdApi.Webpack.getStore("MessageStore");
-const ReferencedMessageStore = BdApi.Webpack.getStore("ReferencedMessageStore");
-const MessageActions = BdApi.Webpack.getByKeys("fetchMessage", "deleteMessage");
-const hasThreadElement = BdApi.Webpack.getBySource("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage").hasThread;
-const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
-const messageReferenceSelectors = BdApi.Webpack.getByKeys("messageSpine", "repliedMessageClickableSpine");
-const GuildRoleStore = Webpack.getStore("GuildRoleStore");
-const PresenceStore = Webpack.getStore("PresenceStore");
+//const [ module2, key ] = Webpack.getWithKey(Filters.byStrings("PlatformTypes", "windowKey", "title"));
+const windowArea = BdApi.Webpack.getById("950796");
+
 const ChannelAckModule = (() => {
     const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
     const module = BdApi.Webpack.getModule((e, m) => filter(BdApi.Webpack.modules[m.id]));
@@ -51,11 +91,6 @@ const updateMessageReferenceStore = (()=>{
     const target = getActionHandler();
     return (message) => target({message});
 })();
-const constructMessageObj = Webpack.getModule(Webpack.Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), { searchExports: true });
-
-const ChannelConstructor = Webpack.getModule(Webpack.Filters.byPrototypeKeys("addCachedMessages"));
-const useStateFromStores = Webpack.getModule(Webpack.Filters.byStrings("getStateFromStores"), { searchExports: true });
-const appSidePanelSelectors = BdApi.Webpack.getByKeys("appAsidePanelWrapper", "app");
 
 const { appAsidePanelWrapper, app } = appSidePanelSelectors;
 let container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
@@ -71,12 +106,16 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "8.6.0",
+            "title": "9.0.0",
             "type": "added",
+            "blurb": "Test",
             "items": [
-                "Added REGEX patterns for Keyword Tracking",
-                "Added ability to switch between Whitelist or Blacklist mode for servers and channels filtering for Keyword Tracking",
-                "Added new option to Keyword Tracking to scan entire message object or content only."
+                "**__HIGHLY REQUESTED__** Notification History Popout! You can now view all notifications you've received in a popout window. Invoke it with the 'PN' button top right in the title bar",
+                "**__NEW__** Option in `Keyword Notifications` section, to flip behaviour between `Whitelist` and `Blacklist` mode.  ",
+                "Optimised progress bar. This should create less lag when high numbers of notifications are live.",
+                "Fixed `transitionTo` for Reaction Notifications, they now take you to the reacted message.",
+                "Greatly improved speed of clicking a notification to be taken to the message. (`transitionTo`)",
+                "Fixed hovering timestamps causing notifications to be forcefully destroyed."
             ]
         },
         // {
@@ -216,6 +255,13 @@ const config = {
             collapsible: true,
             shown: false,
             settings: [
+                {
+                    type: "switch",
+                    id: "showHistoryButton",
+                    name: "Show History Button",
+                    note: "Show the History (PN) button top right in the title bar. Disabling this will also halt all history related functionality.",
+                    value: true
+                },
                 {
                     type: "switch",
                     id: "privacyMode",
@@ -521,20 +567,47 @@ module.exports = class PingNotification {
             noLongerWindowNotVisible: "unpinAll",
             readjustAnimationDuration: 100,
             overrideDND: "off",
-            autoSubscribeToAllServers: false
+            autoSubscribeToAllServers: false,
+            showHistoryButton: true
         };
         this.settings = this.loadSettings();
         this.activeNotifications = [];
+        this.sessionMessages = [];
         this.testNotificationData = null;
 
         this.onMessageReceived = this.onMessageReceived.bind(this);
         this.messageThreadCreateHandler = this.messageThreadCreateHandler.bind(this);
 
+        let missingModules = false;
+        let missingModulesName = "";
+
         if (!appSidePanelSelectors.app) {
-            UI.showNotice("PingNotification ERROR: Could not find the appSidePanelSelectors module. Please report this on the Github page!", { type: 'error' });
+            missingModules = true;
+            missingModulesName = "appSidePanelSelectors";
         }
         if (!NotificationUtils) {
-            UI.showNotice("PingNotification ERROR: Could not find the NotificationUtils module. Please report this on the Github page!", { type: 'error' });
+            missingModules = true;
+            missingModulesName = "NotificationUtils";
+        }
+        if (!windowArea) {
+            missingModules = true;
+            missingModulesName = "windowArea";
+        }
+        if (missingModules) {
+            UI.showNotification({
+                title: "PingNotification",
+                content: `**ERROR:** Could not find the ${missingModulesName} module. Please report this on the Github page!`,
+                type: "error",
+                duration: 30000,
+                actions: [
+                    {
+                        label: "Open Github",
+                        onClick: () => {
+                            window.open(`https://github.com/DaddyBoard/BD-Plugins/issues/new?title=Auto%20generated%20bug%20report%20for%20missing%20module&body=Filter%20search%20for%20%60${missingModulesName}%60%20failed.`);
+                        }
+                    }
+                ]
+            })
         }
     }
 
@@ -587,6 +660,10 @@ module.exports = class PingNotification {
             }
         };
 
+        if (this.settings.showHistoryButton) {
+            this.patchTitleBar();
+        }
+
         Dispatcher.subscribe("MESSAGE_CREATE", this.messageCreateHandler);
         Dispatcher.subscribe("THREAD_CREATE", this.messageThreadCreateHandler);
         Dispatcher.subscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
@@ -606,6 +683,23 @@ module.exports = class PingNotification {
         }
     }
 
+    patchTitleBar() {
+        Patcher.after("PN", windowArea, "TF", (_, [props], ret) => {
+            if (props.windowKey?.startsWith("DISCORD_")) return ret;
+            if (props.trailing?.props?.children) {
+                props.trailing.props.children.splice(3, 0,
+                    createPopout(this),
+                );
+            }
+        });
+        reRender("." + trailing);
+    }
+
+    unpatchTitleBar() {
+        Patcher.unpatchAll("PN");
+        reRender("." + trailing);
+    }
+
     stop() {
         if (Dispatcher) {
             Dispatcher.unsubscribe("MESSAGE_CREATE", this.messageCreateHandler);
@@ -619,6 +713,7 @@ module.exports = class PingNotification {
         }
         this.removeAllNotifications();
         BdApi.DOM.removeStyle("PingNotificationStyles");
+        Patcher.unpatchAll("PN");
     }
 
     loadSettings() {
@@ -860,6 +955,140 @@ module.exports = class PingNotification {
             border-bottom-left-radius: 0px !important;
             border-left: 0px !important;
         }
+
+        .ping-notification [class*="timestamp"] {
+            pointer-events: none !important;
+        }
+
+        .pn-hist-button {
+            cursor: pointer;
+        }
+
+        .pn-hist-button svg text {
+            transition: fill 0.2s ease;
+        }
+
+        .pn-hist-popout {
+            background-color: var(--background-surface-high);
+            border-radius: 8px;
+            box-shadow: var(--elevation-high);
+            padding: 12px;
+            width: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            color: var(--text-default);
+            scrollbar-width: thin;
+            scrollbar-color: var(--scrollbar-thin-thumb) var(--scrollbar-thin-track);
+        }
+
+        .pn-hist-popout::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .pn-hist-popout::-webkit-scrollbar-thumb {
+            background-color: var(--scrollbar-thin-thumb, #202225);
+            border-radius: 4px;
+        }
+
+        .pn-hist-popout::-webkit-scrollbar-track {
+            background: var(--scrollbar-thin-track, transparent);
+        }
+
+        .pn-hist-popout-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--header-primary);
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--background-modifier-accent);
+        }
+
+        .pn-hist-clear-button {
+            background: transparent;
+            border: 1px solid var(--button-outline-danger-border);
+            color: var(--text-feedback-critical);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .pn-hist-clear-button:hover {
+            background: var(--button-danger-background);
+            border-color: var(--button-danger-background);
+            color: var(--white);
+        }
+
+        .pn-hist-popout-empty {
+            color: var(--text-muted);
+            font-size: 13px;
+            text-align: center;
+            padding: 20px 10px;
+        }
+
+        .pn-hist-group {
+            margin-bottom: 12px;
+        }
+
+        .pn-hist-group-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--channels-default);
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+
+        .pn-hist-group-icon {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .pn-hist-group-channel {
+            color: var(--channels-default);
+            font-size: 16px;
+        }
+
+        .pn-hist-popout-item {
+            margin-bottom: 8px;
+            -webkit-padding-start: 0;
+            padding-inline-start: 0;
+            margin-inline-start: -16px;
+            position: relative;
+            transition: background-color 0.15s ease;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .pn-hist-popout-item:last-child {
+            margin-bottom: 0;
+        }
+
+
+        .pn-hist-messageContent [class*="buttonContainer_"] {
+            display: none !important;
+        }
+
+        .pn-hist-popout [class*="hoverButtonGroup_"],
+        .pn-hist-popout [class*="codeActions_"],
+        .pn-hist-popout [class*="reactionBtn"] {
+            display: none !important;
+        }
+
+        .pn-hist-popout [class*="message__"][class*="selected_"]:not([class*="mentioned_"]),
+        .pn-hist-popout [class*="message__"]:hover:not([class*="mentioned__"]) {
+            background: inherit !important;
+        }
     `;
 
     onMessageReceived(event, update) {
@@ -918,6 +1147,7 @@ module.exports = class PingNotification {
     async onReactionReceived(event) {
         const currentUser = UserStore.getCurrentUser();
         const presence = PresenceStore.getStatus(currentUser.id);
+        const realId = event.messageId;
 
         if (presence.status === "dnd" && this.settings.overrideDND === "off") {
             return;
@@ -951,7 +1181,7 @@ module.exports = class PingNotification {
             },
             type: 19
         }
-        this.showNotification(messageToConstruct, channel, {notify: true}, channel);
+        this.showNotification(messageToConstruct, channel, {notify: true}, undefined, realId);
         if (this.settings.simulateAudioNotificationReaction) {
             NotificationSoundModule.playNotificationSound("message1", 0.4);
         }
@@ -1046,7 +1276,7 @@ module.exports = class PingNotification {
         }
     }
 
-    async showNotification(messageEvent, channel, notifyResult, threadChannel) {
+    async showNotification(messageEvent, channel, notifyResult, threadChannel, realId) {
         const notificationElement = BdApi.DOM.createElement('div', {
             className: 'ping-notification',
             'data-channel-id': channel.id // this is so MoreRoleColors can find the channelid to apply proper color :)
@@ -1117,7 +1347,7 @@ module.exports = class PingNotification {
                 },
                 onClick: () => {
                     if (!isTestNotification) {
-                        this.onNotificationClick(channel, message, threadChannel);
+                        this.onNotificationClick(channel, message, threadChannel, realId);
                     }
                     this.removeNotification(notificationElement);
                 },
@@ -1157,8 +1387,14 @@ module.exports = class PingNotification {
         notificationElement.classList.add('show');
         
         this.adjustNotificationPositions();
-
+        
         liveMessages.push(message.id);
+
+        if (message.type == 21) { return; }
+
+        if (!String(message.id).includes("PingNotification") && this.settings.showHistoryButton) {
+            this.sessionMessages.push({id: message.id, channel_id: channel.id});
+        }
         return notificationElement;
     }
 
@@ -1231,19 +1467,23 @@ module.exports = class PingNotification {
         });
     }
 
-    onNotificationClick(channel, message, threadChannel) {
+    onNotificationClick(channel, message, threadChannel, realId) {
         const notificationsToRemove = this.activeNotifications.filter(notification => 
             notification.channelId === channel.id
         );
+
+        if (message.id.includes("PingNotification-Reaction")) {
+            message.id = realId;
+        }
         
         notificationsToRemove.forEach(notification => {
             this.removeNotification(notification);
         });
         
         if (threadChannel) {
-            transitionTo(`/channels/${channel.guild_id || "@me"}/${threadChannel.id}`);
+            transitionTo(channel.guild_id, threadChannel.id);
         } else {
-            transitionTo(`/channels/${channel.guild_id || "@me"}/${channel.id}/${message.id}`);
+            transitionTo(channel.guild_id, channel.id, message.id);
         }
     }
 
@@ -1275,7 +1515,17 @@ module.exports = class PingNotification {
                         setting.name = `${mode} Servers for Keywords`;
                         setting.note = `Add servers you want to be ${mode.toLowerCase()} for keywords from, separated by commas. Example: \`1234567890, 1234567891\``;
                     }
-                    
+                    if (setting.id === 'showHistoryButton') {
+                        setting.onChange = (value) => {
+                            plugin.settings[setting.id] = value;
+                            plugin.saveSettings(plugin.settings);
+                            if (value) {
+                                plugin.patchTitleBar();
+                            } else {
+                                plugin.unpatchTitleBar();
+                            }
+                        };
+                    }
                     if (setting.id === 'simulateAudioNotificationReaction') {
                         setting.disabled = !plugin.settings.enableReactionNotifications;
                     }
@@ -1505,7 +1755,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
                 title,
                 React.createElement('span', {
                     style: {
-                        color: 'var(--text-danger)',
+                        color: 'var(--text-feedback-critical)',
                         fontWeight: 'bold',
                         marginLeft: '4px'
                     }
@@ -1519,7 +1769,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
                 title,
                 React.createElement('span', {
                     style: {
-                        color: 'var(--text-danger)',
+                        color: 'var(--text-feedback-critical)',
                         fontWeight: 'bold',
                         marginLeft: '4px'
                     }
@@ -1899,7 +2149,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
                 backgroundColor: 'var(--background-secondary)',
                 padding: '2px 6px',
                 borderRadius: '4px',
-                color: 'var(--text-danger)',
+                color: 'var(--text-feedback-critical)',
                 fontWeight: 'bold',
                 fontSize: '10px'
             }
@@ -1996,21 +2246,14 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
                 left: 0,
                 height: '4px',
                 width: '100%',
-                backgroundColor: 'var(--background-secondary-alt)',
             }
-        }),
-        React.createElement('div', { 
-            style: { 
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                height: '4px',
-                width: `${progress}%`,
-                backgroundColor: progressColorString,
-                transition: 'width 0.1s linear, background-color 0.5s ease',
-                zIndex: 1,
-            }
-        }),
+        },
+            DiscordProgressBar && React.createElement(DiscordProgressBar, {
+                percent: progress,
+                foregroundGradientColor: [progressColorString, progressColorString],
+                animate: true
+            })
+        ),
         React.createElement('div', {
             style: {
                 position: 'absolute',
@@ -2083,4 +2326,254 @@ function addMessage(message) {
     });
 
     ChannelConstructor.commit(newChannel);
+}
+
+let renderMessage;
+
+function RenderMessage({message, onClickCallback}) {
+    if (typeof renderMessage === "undefined") {
+        renderMessage = RecentMentionsInbox({}).props.renderMessage;
+    }
+
+    const [node] = renderMessage(message, () => {
+        const channel = ChannelStore.getChannel(message.channel_id);
+        transitionTo(channel.guild_id, channel.id, message.id);
+        if (onClickCallback) onClickCallback();
+    });
+
+    return node.type(node.props)?.props?.children?.[1];
+}
+
+function createPopout(pluginInstance) {
+    return React.createElement(class extends React.Component {
+        constructor(props) {
+            super(props);
+            this.state = { hover: false };
+            this.buttonRef = React.createRef();
+        }
+        
+        render() {
+            const { hover } = this.state;
+            const fillColor = hover ? 'white' : '#8b8c91';
+
+            return React.createElement(PopoutModule, {
+                position: 'bottom',
+                align: 'center',
+                targetElementRef: this.buttonRef,
+                renderPopout: () => {
+                    return React.createElement(PopoutContent, { pluginInstance, parentComponent: this });
+                }
+            }, (popoutProps) => {
+                return React.createElement('div', {
+                    ...popoutProps,
+                    ref: this.buttonRef,
+                    className: 'pn-hist-button',
+                    onMouseEnter: () => this.setState({ hover: true }),
+                    onMouseLeave: () => this.setState({ hover: false })
+                }, 
+                    React.createElement('svg', {
+                        width: '24',
+                        height: '24',
+                        viewBox: '0 0 24 24'
+                    }, 
+                        React.createElement('text', {
+                            x: '50%',
+                            y: '55%',
+                            fill: fillColor,
+                            fontSize: '17',
+                            fontWeight: 'bold',
+                            textAnchor: 'middle',
+                            dominantBaseline: 'central'
+                        }, 'PN')
+                    )
+                );
+            });
+        }
+    });
+}
+
+class PopoutContent extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { displayCount: 10 };
+        this.scrollRef = React.createRef();
+        this.sentinelRef = React.createRef();
+        this.observer = null;
+    }
+
+    componentDidMount() {
+        this.setupObserver();
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if (prevState.displayCount !== this.state.displayCount) {
+            this.setupObserver();
+        }
+    }
+
+    componentWillUnmount() {
+        if (this.observer) {
+            this.observer.disconnect();
+        }
+    }
+
+    setupObserver() {
+        if (this.observer) {
+            this.observer.disconnect();
+        }
+
+        if (this.sentinelRef.current && this.state.displayCount < this.props.pluginInstance.sessionMessages.length) {
+            this.observer = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting) {
+                        this.setState({ displayCount: this.state.displayCount + 10 });
+                    }
+                },
+                { root: this.scrollRef.current, threshold: 0.1 }
+            );
+            this.observer.observe(this.sentinelRef.current);
+        }
+    }
+
+    render() {
+        const { pluginInstance, parentComponent } = this.props;
+        const { displayCount } = this.state;
+        
+        const allMessagesReversed = pluginInstance.sessionMessages.slice().reverse();
+        const messagesToDisplay = allMessagesReversed.slice(0, displayCount);
+        const groupedMessages = [];
+        let currentGroup = null;
+
+        messagesToDisplay.forEach((item) => {
+            const message = MessageStore.getMessage(item.channel_id, item.id);
+            if (!message) return;
+
+            if (!currentGroup || currentGroup.channel_id !== item.channel_id) {
+                currentGroup = {
+                    channel_id: item.channel_id,
+                    messages: [item]
+                };
+                groupedMessages.push(currentGroup);
+            } else {
+                currentGroup.messages.push(item);
+            }
+        });
+
+        const sentinelPosition = displayCount - 3;
+        let messageCounter = 0;
+
+        return React.createElement('div', {
+            ref: this.scrollRef,
+            className: 'pn-hist-popout'
+        }, [
+            React.createElement('div', {
+                key: 'header',
+                className: 'pn-hist-popout-header'
+            }, [
+                React.createElement('span', {
+                    key: 'title'
+                }, 'PingNotification History'),
+                pluginInstance.sessionMessages.length > 0 && React.createElement('button', {
+                    key: 'clear',
+                    className: 'pn-hist-clear-button',
+                    onClick: () => {
+                        UI.showConfirmationModal("PingNotification", "Are you sure you want to clear notification history?", {
+                            onConfirm: () => {
+                                pluginInstance.sessionMessages.length = 0;
+                                this.setState({ displayCount: 10 });
+                                parentComponent.forceUpdate();
+                            }
+                        })
+                    }
+                }, 'Clear')
+            ]),
+            pluginInstance.sessionMessages.length === 0
+                ? React.createElement('div', {
+                    key: 'empty',
+                    className: 'pn-hist-popout-empty'
+                }, 'No messages yet')
+                : groupedMessages.map((group, groupIndex) => {
+                    const channel = ChannelStore.getChannel(group.channel_id);
+                    if (!channel) return null;
+
+                    const guild = channel.guild_id ? GuildStore.getGuild(channel.guild_id) : null;
+                    const channelName = channel.name || 'Direct Message';
+                    
+                    let iconUrl;
+                    if (guild && guild.icon) {
+                        iconUrl = `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=32`;
+                    } else if (!guild) {
+                        const recipients = channel.recipients;
+                        if (recipients && recipients.length > 0) {
+                            const user = UserStore.getUser(recipients[0]);
+                            if (user && user.avatar) {
+                                iconUrl = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=32`;
+                            } else {
+                                iconUrl = `https://cdn.discordapp.com/embed/avatars/0.png`;
+                            }
+                        } else {
+                            iconUrl = `https://cdn.discordapp.com/embed/avatars/0.png`;
+                        }
+                    } else {
+                        iconUrl = `https://cdn.discordapp.com/embed/avatars/0.png`;
+                    }
+
+                    return React.createElement('div', {
+                        key: `group-${group.channel_id}-${groupIndex}`,
+                        className: 'pn-hist-group'
+                    }, [
+                        React.createElement('div', {
+                            key: 'group-header',
+                            className: 'pn-hist-group-header'
+                        }, [
+                            React.createElement('img', {
+                                key: 'icon',
+                                src: iconUrl,
+                                className: 'pn-hist-group-icon',
+                                alt: ''
+                            }),
+                            React.createElement('span', {
+                                key: 'channel',
+                                className: 'pn-hist-group-channel'
+                            }, `#${channelName}`)
+                        ]),
+                        ...group.messages.map((item, msgIndex) => {
+                            const message = MessageStore.getMessage(item.channel_id, item.id);
+                            if (!message) return null;
+
+                            const currentIndex = messageCounter++;
+                            const elements = [];
+                            
+                            elements.push(React.createElement('div', {
+                                key: `${item.id}-${msgIndex}`,
+                                className: 'pn-hist-popout-item'
+                            }, 
+                                React.createElement(RenderMessage, {
+                                    message: message,
+                                    onClickCallback: null
+                                })
+                            ));
+
+                            if (currentIndex === sentinelPosition) {
+                                elements.push(React.createElement('div', {
+                                    key: `sentinel-${currentIndex}`,
+                                    ref: this.sentinelRef,
+                                    style: { height: '1px' }
+                                }));
+                            }
+
+                            return elements;
+                        }).flat()
+                    ]);
+                })
+        ]);
+    }
+}
+
+function reRender(selector) {
+	const target = document.querySelector(selector)?.parentElement;
+	if (!target) return;
+    const instance = BdApi.ReactUtils.getOwnerInstance(target);
+    const unpatch = Patcher.instead("PingNotification-History", instance, "render", () => unpatch());
+	instance.forceUpdate(() => instance.forceUpdate());
 }
