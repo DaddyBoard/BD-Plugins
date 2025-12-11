@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.0.0
+ * @version 9.1.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -106,9 +106,30 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
+            "title": "9.1.0 - Added",
+            "type": "added",
+            "items": [
+                "**__NEW__** Option in `Keyword Notifications` section for `Keyword Only Mode`. This will only show notifications if the content matches any of your rules. This essentially turns PingNotification into a standalone keyword tracking plugin.",
+            ]
+        },
+        {
+            "title": "9.1.0 - Improvements",
+            "type": "improved",
+            "items": [
+                "Regex patterns now display the index of the pattern that was matched instead of the result of the pattern itself.",
+                "Keyword Matching now correctly checks for matches where special characters are used. Words like `!test` will now match.",
+            ]
+        },
+        {
+            "title": "9.1.0 - Fixed",
+            "type": "fixed",
+            "items": [
+                "Discord CSS changes breaking our styling.",
+            ]
+        },
+        {
             "title": "9.0.0",
             "type": "added",
-            "blurb": "Test",
             "items": [
                 "**__HIGHLY REQUESTED__** Notification History Popout! You can now view all notifications you've received in a popout window. Invoke it with the 'PN' button top right in the title bar",
                 "**__NEW__** Option in `Keyword Notifications` section, to flip behaviour between `Whitelist` and `Blacklist` mode.  ",
@@ -352,6 +373,13 @@ const config = {
                 },
                 {
                     type: "switch",
+                    id: "keywordOnlyMode",
+                    name: "Keyword Only Mode",
+                    note: "!!!NOTE!!! Only show notifications if the content matches any of your rules.",
+                    value: false
+                },
+                {
+                    type: "switch",
                     id: "simulateAudioNotification",
                     name: "Force Audio on Keyword Notifications",
                     note: "Simulate a discord message sound when a keyword notification is shown",
@@ -568,7 +596,8 @@ module.exports = class PingNotification {
             readjustAnimationDuration: 100,
             overrideDND: "off",
             autoSubscribeToAllServers: false,
-            showHistoryButton: true
+            showHistoryButton: true,
+            keywordOnlyMode: false
         };
         this.settings = this.loadSettings();
         this.activeNotifications = [];
@@ -641,6 +670,7 @@ module.exports = class PingNotification {
 
         this.reactionAddHandler = (event) => {
             if (!this.settings.enableReactionNotifications) return;
+            if (this.settings.keywordOnlyMode) return;
             this.onReactionReceived(event);
         };
 
@@ -1008,7 +1038,7 @@ module.exports = class PingNotification {
 
         .pn-hist-clear-button {
             background: transparent;
-            border: 1px solid var(--button-outline-danger-border);
+            border: 1px solid var(--control-critical-primary-border-default);
             color: var(--text-feedback-critical);
             padding: 4px 12px;
             border-radius: 4px;
@@ -1019,8 +1049,8 @@ module.exports = class PingNotification {
         }
 
         .pn-hist-clear-button:hover {
-            background: var(--button-danger-background);
-            border-color: var(--button-danger-background);
+            background: var(--control-critical-primary-background-active);
+            border-color: var(--control-critical-primary-background-active);
             color: var(--white);
         }
 
@@ -1101,14 +1131,21 @@ module.exports = class PingNotification {
 
         const notifyResult = this.shouldNotify(event.message, channel, currentUser);
 
-        if (!update) {
-            if (notifyResult && (notifyResult === true || notifyResult.notify === true)) {
+        if (this.settings.keywordOnlyMode) {
+            if (notifyResult?.isKeywordMatch === true) {
                 this.showNotification(event.message, channel, notifyResult);
             }
-        }
-        else {
-            if (notifyResult?.isKeywordMatch == true) {
-                this.showNotification(event.message, channel, notifyResult);
+
+        } else {
+            if (!update) {
+                if (notifyResult && (notifyResult === true || notifyResult.notify === true)) {
+                    this.showNotification(event.message, channel, notifyResult);
+                }
+            }
+            else {
+                if (notifyResult?.isKeywordMatch === true) {
+                    this.showNotification(event.message, channel, notifyResult);
+                }
             }
         }
     }
@@ -1120,6 +1157,8 @@ module.exports = class PingNotification {
         if (presence.status === "dnd" && this.settings.overrideDND === "off") {
             return;
         }
+
+        if (this.settings.keywordOnlyMode) return;
 
         if (!this.settings.enableThreadNotifications) return;
         const channel = ChannelStore.getChannel(event.channel.id);
@@ -1215,7 +1254,11 @@ module.exports = class PingNotification {
                 
                 hasKeywordMatch = keywords.some(keyword => {
                     if (this.settings.exactMatch) {
-                        const wordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const startsWithWord = /^\w/.test(keyword);
+                        const endsWithWord = /\w$/.test(keyword);
+                        const pattern = `${startsWithWord ? '\\b' : ''}${escapedKeyword}${endsWithWord ? '\\b' : ''}`;
+                        const wordRegex = new RegExp(pattern, 'i');
                         const matches = wordRegex.test(searchTarget);
                         if (matches) {
                             keywordMatch = keyword;
@@ -1243,20 +1286,24 @@ module.exports = class PingNotification {
                     ? JSON.stringify(message) 
                     : message.content;
                 
-                hasKeywordMatch = regexPatterns.some(pattern => {
+                for (let i = 0; i < regexPatterns.length; i++) {
+                    const pattern = regexPatterns[i];
                     try {
                         const regex = new RegExp(pattern, 'i');
                         const match = regex.exec(searchTarget);
                         if (match) {
-                            keywordMatch = `${match[0]} (REGEX)`;
-                            return true;
+                            keywordMatch = `REGEX Index: ${i + 1}`;
+                            hasKeywordMatch = true;
+                            break;
                         }
-                        return false;
                     } catch (error) {
-                        BdApi.UI.showNotice("PingNotification: Caught regex error for pattern \"${pattern}\":", { type: 'error' });
-                        return false;
+                        UI.showNotification({
+                            title: "PingNotification",
+                            content: "Caught regex error for pattern \"${pattern}\":", 
+                            type: 'error' 
+                        });
                     }
-                });
+                }
             }
             
             if (hasKeywordMatch && this.settings.simulateAudioNotification && !shouldNotifyDiscordModule) {
@@ -1390,7 +1437,7 @@ module.exports = class PingNotification {
         
         liveMessages.push(message.id);
 
-        if (message.type == 21) { return; }
+        if (message.type == 21) return;
 
         if (!String(message.id).includes("PingNotification") && this.settings.showHistoryButton) {
             this.sessionMessages.push({id: message.id, channel_id: channel.id});
@@ -1930,7 +1977,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
             maxHeight: `${settings.maxHeight}px`,
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: 'var(--activity-card-background)',
+            backgroundColor: 'var(--card-background-default)',
             backdropFilter: 'blur(10px)',
             borderRadius: '12px',
             transform: 'translateZ(0)',
@@ -2574,6 +2621,6 @@ function reRender(selector) {
 	const target = document.querySelector(selector)?.parentElement;
 	if (!target) return;
     const instance = BdApi.ReactUtils.getOwnerInstance(target);
-    const unpatch = Patcher.instead("PingNotification-History", instance, "render", () => unpatch());
+    const unpatch = Patcher.instead("PN", instance, "render", () => unpatch());
 	instance.forceUpdate(() => instance.forceUpdate());
 }
