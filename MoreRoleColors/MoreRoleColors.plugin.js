@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.5
+* @version 2.0.6
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,10 +27,11 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.5 - Fixed",
+            "title": "2.0.6 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixed Tag coloring not applying in some cases"
+                "Fixed user profile popout causing crashes",
+                "Text inside of codeblocks in `Compact Mode` now render white text if you have message coloring + gradient coloring enabled."
             ]
         }
     ],
@@ -846,9 +847,15 @@ module.exports = class MoreRoleColors {
             const member = GuildMemberStore.getMember(guildId, props.message.author.id);
             if (member?.colorString) {
                 const colorObject = this.getColorObjectForMember(guildId, member);
+                
+                const hasCodeBlock = Array.isArray(res?.props?.children?.[0]) && 
+                    res.props.children[0].some(child => child?.type === 'pre');
+                const isCompact = props?.compact === true;
+                const useGradient = this.settings.messagesGradient && !(isCompact && hasCodeBlock);
+                
                 if (!res.props.style) res.props.style = {};
                 const tempElement = { style: {} };
-                this.applyRoleStyle(tempElement, colorObject, this.settings.messagesGradient);
+                this.applyRoleStyle(tempElement, colorObject, useGradient);
                 Object.assign(res.props.style, tempElement.style);
             }
 
@@ -864,7 +871,7 @@ module.exports = class MoreRoleColors {
         const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
 
         BdApi.Patcher.after("MoreRoleColors-userProfile", UserProfileModule, "Z", (_, [props], res) => {
-            const profileComponent = res.props.children[0];
+            const profileComponent = res.props.children[1];
 
             let newType = cache.get(profileComponent.type);
             if (!newType) {            
@@ -932,7 +939,6 @@ module.exports = class MoreRoleColors {
             componentDidMount() {
                 const node = this.tagRef.current;
                 if (!node) return;
-
                 if (!node.parentElement) return;
                 
                 const username = node.parentElement.querySelector("[class*=username_]");
