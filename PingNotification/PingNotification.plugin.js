@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.1.0
+ * @version 9.1.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -105,6 +105,13 @@ let liveMessages = [];
 
 const config = {
     changelog: [
+        {
+            "title": "9.1.1 - Fixed",
+            "type": "fixed",
+            "items": [
+                "Fixed CSS breakage.",
+            ]
+        },
         {
             "title": "9.1.0 - Added",
             "type": "added",
@@ -881,8 +888,8 @@ module.exports = class PingNotification {
             filter: blur(0);
         }
 
-        .ping-notification [class*="spoilerContent_"],
-        .ping-notification [class*="spoilerMarkdownContent_"] {
+        .ping-notification [class*="spoilerContent"],
+        .ping-notification [class*="spoilerMarkdownContent"] {
             background-color: var(--__current--spoiler-background-color);
             -webkit-box-decoration-break: clone;
             box-decoration-break: clone;
@@ -900,9 +907,8 @@ module.exports = class PingNotification {
         .ping-notification-media [class*="draggableWrapper"] {
             pointer-events: none !important;
         }
-        .ping-notification [class*="hoverButtonGroup_"],
-        .ping-notification [class*="wrapper__"],
-        .ping-notification [class*="codeActions_"],
+        .ping-notification [class*="hoverButtonGroup"],
+        .ping-notification [class*="codeActions"],
         .ping-notification [class*="reactionBtn"] {
             display: none !important;
         }
@@ -925,10 +931,11 @@ module.exports = class PingNotification {
             cursor: pointer !important;
         }
 
-        .ping-notification-messageContent [class*="buttonContainer_"],
-        .ping-notification-messageContent [class*="header_"],
-        .ping-notification-messageContent [class*="avatar_"],
-        .ping-notification-messageContent [class*="avatarDecoration_"] {
+        .ping-notification-messageContent [class*="-buttonContainer"],
+        .ping-notification-messageContent [class*="-header"],
+        .ping-notification-messageContent [class*="-avatar"],
+        .ping-notification-messageContent [class*="-avatarDecoration"],
+        .ping-notification-messageContent [class*="StatusEverywhereV2-Avatar"] {
             display: none !important;
         }
             
@@ -943,26 +950,25 @@ module.exports = class PingNotification {
         }
 
 
-        .ping-notification-messageContent [class^="repliedMessage"] {
-            padding-left: 20px;
+        .ping-notification-messageContent [class*="-repliedMessage"] {
+            padding-left: 20px !important;
+            pointer-events: none !important;
         }
-
 
         .ping-notification-messageContent :is(.${messageReferenceSelectors.messageSpine}:before, .${messageReferenceSelectors.repliedMessageClickableSpine}) {
             padding-left: 10px !important;
             margin-left: 40px !important;
         }
 
-
-        .ping-notification-content [class*="contents_"] [class*="markup_"][class*="messageContent"],
-        .ping-notification-content [class*="contents_"] [class*="markup_"],
-        .ping-notification-content [class*="scrollbarGhostHairline_"] {
+        .ping-notification-content [class*="-contents"] [class*="-markup"][class*="-messageContent"],
+        .ping-notification-content [class*="-contents"] [class*="-markup"],
+        .ping-notification-content [class*="-scrollbarGhostHairline"] {
             font-size: var(--ping-notification-content-font-size) !important;
         }
 
-        .ping-notification [class*="repliedTextPreview_"] [class*="repliedTextContent_"],
-        .ping-notification [class*="username_"],
-        .ping-notification [class*="contents_"] [class*="message-content-"] {
+        .ping-notification [class*="-repliedTextPreview"] [class*="-repliedTextContent"],
+        .ping-notification [class*="-username"],
+        .ping-notification [class*="-contents"] [class*="-message-content"] {
             font-size: calc(var(--ping-notification-content-font-size) * 0.85) !important;
         }
 
@@ -971,8 +977,8 @@ module.exports = class PingNotification {
             font-size: calc(var(--ping-notification-content-font-size) - 0.1rem) !important;
         }
 
-        .ping-notification [class*="message__"][class*="selected_"]:not([class*="mentioned_"]),
-        .ping-notification [class*="message__"]:hover:not([class*="mentioned__"]) {
+        .ping-notification [class*="-message"][class*="-selected"]:not([class*="-mentioned"]),
+        .ping-notification [class*="-message"]:hover:not([class*="-mentioned"]) {
             background: inherit !important;
         }
 
@@ -1105,20 +1111,16 @@ module.exports = class PingNotification {
         }
 
 
-        .pn-hist-messageContent [class*="buttonContainer_"] {
+        .pn-hist-messageContent [class*="-buttonContainer"] {
             display: none !important;
         }
 
-        .pn-hist-popout [class*="hoverButtonGroup_"],
-        .pn-hist-popout [class*="codeActions_"],
+        .pn-hist-popout [class*="-hoverButtonGroup"],
+        .pn-hist-popout [class*="-codeActions"],
         .pn-hist-popout [class*="reactionBtn"] {
             display: none !important;
         }
 
-        .pn-hist-popout [class*="message__"][class*="selected_"]:not([class*="mentioned_"]),
-        .pn-hist-popout [class*="message__"]:hover:not([class*="mentioned__"]) {
-            background: inherit !important;
-        }
     `;
 
     onMessageReceived(event, update) {
