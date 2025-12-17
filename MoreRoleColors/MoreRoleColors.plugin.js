@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.6
+* @version 2.0.7
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,11 +27,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.6 - Fixed",
+            "title": "2.0.7 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixed user profile popout causing crashes",
-                "Text inside of codeblocks in `Compact Mode` now render white text if you have message coloring + gradient coloring enabled."
+                "Fixed typing indicator coloring"
             ]
         }
     ],
@@ -538,7 +537,7 @@ module.exports = class MoreRoleColors {
                         .map(e => UserStore.getUser(e))
                         .filter(e => e != null);
 
-                    const typing = Utils.findInTree(res, (node) => node?.className?.startsWith("typingDots_"), {
+                    const typing = Utils.findInTree(res, (node) => node?.className?.includes("-typingDots"), {
                         walkable: ["props", "children"]
                     });
 
