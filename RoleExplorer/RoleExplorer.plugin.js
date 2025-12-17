@@ -2,7 +2,7 @@
 * @name RoleExplorer
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.0.6
+* @version 1.0.7
 * @description View the members of roles in a popout. Remake of RoleMembers by Zerebos.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -204,6 +204,7 @@ module.exports = class RoleExplorer {
                         ? members.length
                         : members.filter(m => m.roles.includes(role.id)).length
                 }));
+            console.log(filteredRoles);
 
             const renderContent = () => {
                 if (view === "roles") {
@@ -259,7 +260,7 @@ module.exports = class RoleExplorer {
                             }, [
                                 React.createElement("span", {
                                     style: {
-                                        color: "var(--header-primary)",
+                                        color: "var(--text-strong)",
                                         fontWeight: "500",
                                         fontSize: "16px"
                                     }
@@ -293,7 +294,7 @@ module.exports = class RoleExplorer {
                                 fill: "none",
                                 xmlns: "http://www.w3.org/2000/svg",
                                 style: {
-                                    color: "var(--interactive-normal)"
+                                    color: "var(--interactive-text-active)"
                                 }
                             }, [
                                 React.createElement("path", {
@@ -377,7 +378,7 @@ module.exports = class RoleExplorer {
                         }, [
                             React.createElement("span", {
                                 style: {
-                                    color: "var(--header-primary)",
+                                    color: "var(--text-strong)",
                                     fontWeight: "500",
                                     fontSize: "16px"
                                 }
@@ -411,7 +412,7 @@ module.exports = class RoleExplorer {
                             fill: "none",
                             xmlns: "http://www.w3.org/2000/svg",
                             style: {
-                                color: "var(--interactive-normal)"
+                                color: "var(--interactive-text-active)"
                             }
                         }, [
                             React.createElement("path", {
@@ -475,7 +476,7 @@ module.exports = class RoleExplorer {
                     }, [
                         React.createElement("h2", {
                             style: {
-                                color: "var(--header-primary)",
+                                color: "var(--text-strong)",
                                 margin: 0,
                                 fontSize: "20px",
                                 fontWeight: "600",
@@ -517,7 +518,7 @@ module.exports = class RoleExplorer {
                         ]),
                         React.createElement("span", {
                             style: {
-                                color: "var(--text-danger)",
+                                color: "var(--text-feedback-critical)",
                                 fontSize: "13px"
                             }
                         }, "Note: Data accuracy depends on server cache and may be incomplete for large servers.")
@@ -527,7 +528,7 @@ module.exports = class RoleExplorer {
                         style: {
                             background: "none",
                             border: "none",
-                            color: "var(--interactive-normal)",
+                            color: "var(--interactive-text-active)",
                             cursor: "pointer",
                             padding: "8px"
                         }
