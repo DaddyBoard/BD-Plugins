@@ -204,8 +204,6 @@ module.exports = class RoleExplorer {
                         ? members.length
                         : members.filter(m => m.roles.includes(role.id)).length
                 }));
-            console.log(filteredRoles);
-
             const renderContent = () => {
                 if (view === "roles") {
                     return React.createElement("div", {
