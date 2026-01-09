@@ -8,6 +8,8 @@ Adds role colors to usernames across Discord - including messages, voice channel
 
 ## 🚀 Features
 
+![img](https://github.com/DaddyBoard/BD-Plugins/blob/main/MoreRoleColors/img.png)
+
 - Role colors applied to usernames in messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags.
 - Customizable settings to enable or disable coloring for specific components.
 - Seamless integration with Discord's existing UI.
@@ -22,6 +24,7 @@ Navigate to `BetterDiscord > Plugins > MoreRoleColors settings` to:
 - Enable or disable role coloring for specific components like messages, voice channels, and more.
 
 If you encounter any problems, please [open an issue](https://github.com/DaddyBoard/BD-Plugins/issues).
+
 
 ## 🌟 Show your support
 
