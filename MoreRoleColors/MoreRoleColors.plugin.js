@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.7
+* @version 2.0.8
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,10 +27,11 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.7 - Fixed",
+            "title": "2.0.8 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixed typing indicator coloring"
+                "Fixed Role Header coloring",
+                "Fixed tag coloring"
             ]
         }
     ],
@@ -813,11 +814,12 @@ module.exports = class MoreRoleColors {
     patchRoleHeaders() {
         const roleHeaderModule = BdApi.Webpack.getBySource(/,.{1,3}.container,.{1,3}.header\),/)
         BdApi.Patcher.after("MoreRoleColors-roleHeaders", roleHeaderModule, "Z", (_, [props], res) => {
-            if (res.props.className.includes("membersGroup")) {
+            let roleNameArea = Utils.findInTree(res, (m) => m?.className?.includes('membersGroupName'))
+            if (roleNameArea) {
                 const guildId = SelectedGuildStore.getGuildId();
                 const roles = Object.values(GuildRoleStore.getRolesSnapshot(guildId));
 
-                let roleName = res.props.children[1].props.children[0];
+                let roleName = roleNameArea.children;
                 let role = roles.find(r => r.name === roleName);
                 if (role) {
                     this.applyRoleStyle(res.props.children[1].props, role, this.settings.roleHeadersGradient);
@@ -939,8 +941,7 @@ module.exports = class MoreRoleColors {
                 const node = this.tagRef.current;
                 if (!node) return;
                 if (!node.parentElement) return;
-                
-                const username = node.parentElement.querySelector("[class*=username_]");
+                const username = node.parentElement.querySelector("[class*=-username]");
                 if (!username) return;
 
                 const style = username.querySelector("[style]") || username;
