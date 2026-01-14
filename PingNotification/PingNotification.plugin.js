@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.1.1
+ * @version 9.1.2
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -39,7 +39,7 @@ const [
     { filter: Webpack.Filters.byKeys("subscribe", "dispatch") }, // Dispatcher
     { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
     { filter: Webpack.Filters.bySource("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage") }, // hasThreadElementModule
-    { filter: m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:[') }, // Message
+    { filter: m => String(m.type).includes('.messageListItem,"aria-setsize":-1') }, // Message
     { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
     { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
     { filter: Webpack.Filters.byStrings(".clearMentions(),", ".deleteRecentMention") }, // RecentMentionsInbox
@@ -105,6 +105,13 @@ let liveMessages = [];
 
 const config = {
     changelog: [
+        {
+            "title": "9.1.2 - Fixed",
+            "type": "fixed",
+            "items": [
+                "Discord update broke core functionality, this is fixed now.",
+            ]
+        },
         {
             "title": "9.1.1 - Fixed",
             "type": "fixed",
