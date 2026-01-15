@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.3
+* @version 1.2.4
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -11,7 +11,7 @@ const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM} = BdApi;
 const { createRoot } = ReactDOM;
 const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
 const MessageStore = Webpack.getStore("MessageStore");
-const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1,children:['));
+const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1'));
 const ChannelStore = Webpack.getStore("ChannelStore");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
 const UserStore = Webpack.getStore("UserStore");
@@ -36,6 +36,7 @@ const config = {
             "type": "fixed",
             "items": [
                 "New discord CSS variables.",
+                "Fixed message component.",
             ]
         }
     ],
@@ -319,12 +320,12 @@ module.exports = class PeekMessageLinks {
         });
 
         DOM.addStyle('peek-message-popup-style', `
-            .peek-message-popup [class*=buttonContainer_] {
+            .peek-message-popup [class*="-buttonContainer"] {
                 display: none !important;
             }
 
-            .peek-message-popup [class*="message__"][class*="selected_"]:not([class*="mentioned_"]),
-            .peek-message-popup [class*="message__"]:hover:not([class*="mentioned__"]) {
+            .peek-message-popup [class*="message"][class*="-selected"]:not([class*="-mentioned"]),
+            .peek-message-popup [class*="message"]:hover:not([class*="-mentioned"]) {
                 background: inherit !important;
             }
             
