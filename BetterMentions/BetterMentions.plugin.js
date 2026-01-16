@@ -15,7 +15,8 @@ const UserStore = getStore("UserStore");
 const MentionComponent = getBySource(".USER_MENTION)");
 const [MentionModule, mentionKey] = getWithKey(Filters.byStrings('USER_MENTION', "getNickname", "inlinePreview"));
 const TextEditorMention = getBySource('.Z.hidePersonalInformation)', '.default.getUser(', 'mode:"username",');
-const useStateFromStores = Webpack.getModule(Filters.byStrings('useStateFromStores'), { searchExports: true });
+const { useStateFromStores } = BdApi.Hooks;
+
 
 module.exports = class BetterMentions {
     constructor(meta) {
