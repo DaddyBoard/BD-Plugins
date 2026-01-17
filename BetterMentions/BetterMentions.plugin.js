@@ -11,7 +11,7 @@
 const { Webpack, React, Patcher } = BdApi;
 const { Filters } = Webpack;
 
-const UserStore = getStore("UserStore");
+const { UserStore } = Webpack.Stores;
 
 const [
     MentionComponent,
