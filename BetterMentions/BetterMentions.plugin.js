@@ -18,9 +18,9 @@ const [
     MentionModule,
     TextEditorMention
 ] = Webpack.getBulk(
-    { filter: Filters.bySource(".USER_MENTION)"), searchExports: false },
+    { filter: Filters.bySource(".USER_MENTION)"), searchDefault: false },
     { filter: Filters.byStrings('USER_MENTION', "getNickname", "inlinePreview"), defaultExport: false },
-    { filter: Filters.bySource('.Z.hidePersonalInformation)', '.default.getUser(', 'mode:"username",'), searchExports: false }
+    { filter: Filters.bySource('.Z.hidePersonalInformation)', '.default.getUser(', 'mode:"username",'), searchDefault: false }
 );
 
 const { useStateFromStores } = BdApi.Hooks;
