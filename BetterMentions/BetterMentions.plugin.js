@@ -9,14 +9,21 @@
 */
 
 const { Webpack, React, Patcher } = BdApi;
-const { getStore, getByStrings, getBySource } = Webpack;
+const { Filters } = Webpack;
 
 const UserStore = getStore("UserStore");
-const MentionComponent = getBySource(".USER_MENTION)");
-const MentionModule = getByStrings('USER_MENTION', "getNickname", "inlinePreview", { defaultExport: false });
-const TextEditorMention = getBySource('.Z.hidePersonalInformation)', '.default.getUser(', 'mode:"username",');
-const { useStateFromStores } = BdApi.Hooks;
 
+const [
+    MentionComponent,
+    MentionModule,
+    TextEditorMention
+] = Webpack.getBulk(
+    { filter: Filters.bySource(".USER_MENTION)"), searchExports: false },
+    { filter: Filters.byStrings('USER_MENTION', "getNickname", "inlinePreview"), defaultExport: false },
+    { filter: Filters.bySource('.Z.hidePersonalInformation)', '.default.getUser(', 'mode:"username",'), searchExports: false }
+);
+
+const { useStateFromStores } = BdApi.Hooks;
 
 module.exports = class BetterMentions {
     constructor(meta) {
