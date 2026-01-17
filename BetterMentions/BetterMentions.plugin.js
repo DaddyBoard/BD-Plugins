@@ -9,7 +9,7 @@
 */
 
 const { Webpack, React, Patcher } = BdApi;
-const { getStore, getWithKey, getByStrings, getBySource, Filters } = Webpack;
+const { getStore, getByStrings, getBySource } = Webpack;
 
 const UserStore = getStore("UserStore");
 const MentionComponent = getBySource(".USER_MENTION)");
