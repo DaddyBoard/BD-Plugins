@@ -9,11 +9,11 @@
 */
 
 const { Webpack, React, Patcher } = BdApi;
-const { getStore, getWithKey, getBySource, Filters } = Webpack;
+const { getStore, getWithKey, getByStrings, getBySource, Filters } = Webpack;
 
 const UserStore = getStore("UserStore");
 const MentionComponent = getBySource(".USER_MENTION)");
-const [MentionModule, mentionKey] = getWithKey(Filters.byStrings('USER_MENTION', "getNickname", "inlinePreview"));
+const MentionModule = getByStrings('USER_MENTION', "getNickname", "inlinePreview", { defaultExport: false });
 const TextEditorMention = getBySource('.Z.hidePersonalInformation)', '.default.getUser(', 'mode:"username",');
 const { useStateFromStores } = BdApi.Hooks;
 
@@ -33,7 +33,7 @@ module.exports = class BetterMentions {
     }
 
     patchMentions() {
-        Patcher.after("BetterMentions", MentionModule, mentionKey, (_, [props], res) => {
+        Patcher.after("BetterMentions", MentionModule, "Z", (_, [props], res) => {
             const innerProps = BdApi.Utils.findInTree(res, x => x?.position?.includes('right'), {
                 walkable: ['props', 'children']
             });
