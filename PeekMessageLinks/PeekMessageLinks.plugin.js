@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.4
+* @version 1.2.5
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -11,11 +11,11 @@ const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM} = BdApi;
 const { createRoot } = ReactDOM;
 const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
 const MessageStore = Webpack.getStore("MessageStore");
-const Message = Webpack.getModule(m => String(m.type).includes('.messageListItem,"aria-setsize":-1'));
+const Message = Webpack.getModule(m => String(m.type).includes('Nt,"aria-setsize":-1'));
 const ChannelStore = Webpack.getStore("ChannelStore");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
 const UserStore = Webpack.getStore("UserStore");
-const Dispatcher = Webpack.getByKeys("subscribe", "dispatch");
+const Dispatcher = Webpack.getByKeys("subscribe", "dispatch", { searchExports: true });
 const ReferencedMessageStore = Webpack.getStore("ReferencedMessageStore");
 const ChannelActions = Webpack.getModule(a => a.clearChannel);
 const updateMessageReferenceStore = (()=>{
@@ -35,8 +35,7 @@ const config = {
             "title": "Fixed",
             "type": "fixed",
             "items": [
-                "New discord CSS variables.",
-                "Fixed message component.",
+                "Fixed for breaking discord update."
             ]
         }
     ],
