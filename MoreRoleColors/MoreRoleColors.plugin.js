@@ -940,7 +940,6 @@ module.exports = class MoreRoleColors {
                 if (!node) return;
                 if (!node.parentElement) return;
                 const username = node.parentElement.querySelector("[class*=username]");
-                console.log(username);
                 if (!username) return;
 
                 const style = username.querySelector("[style]") || username;
