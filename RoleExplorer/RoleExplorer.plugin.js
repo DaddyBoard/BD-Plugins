@@ -2,7 +2,7 @@
 * @name RoleExplorer
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.0.7
+* @version 1.0.8
 * @description View the members of roles in a popout. Remake of RoleMembers by Zerebos.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -12,7 +12,7 @@ const { Webpack, React, Patcher } = BdApi;
 const { createRoot } = BdApi.ReactDOM;
 
 const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
-const RoleMention = BdApi.Webpack.getModule(Webpack.Filters.byStrings(".wrapper]:!0,interactive:"), { defaultExport: false }); 
+const RoleMention = BdApi.Webpack.getModule(Webpack.Filters.byStrings("]:!0,interactive:"), { defaultExport: false }); 
 const GuildStore = BdApi.Webpack.getStore("GuildStore");   
 const SelectedGuildStore = BdApi.Webpack.getStore("SelectedGuildStore");
 const UserStore = BdApi.Webpack.getStore("UserStore");
@@ -45,8 +45,7 @@ module.exports = class RoleExplorer {
     }
 
     patchRoleMention() {
-        RoleMention.Z.displayName = "RoleExplorerRoleMention";
-        Patcher.after("RoleExplorer-RoleMention", RoleMention, "Z", (_, [props]) => { 
+        Patcher.after("RoleExplorer-RoleMention", RoleMention, "A", (_, [props]) => { 
             
             if (props?.className?.includes("role") || (typeof props?.children[1] === "string" && props?.children[1]?.includes("@"))) {
                 props.onClick = (e) => {
@@ -204,6 +203,7 @@ module.exports = class RoleExplorer {
                         ? members.length
                         : members.filter(m => m.roles.includes(role.id)).length
                 }));
+                
             const renderContent = () => {
                 if (view === "roles") {
                     return React.createElement("div", {

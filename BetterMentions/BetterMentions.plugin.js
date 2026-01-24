@@ -1,7 +1,7 @@
 /**
 * @name BetterMentions
 * @author DaddyBoard
-* @version 1.0.0
+* @version 1.0.1
 * @description Adds profile pictures to mentions and enables click-to-profile on text editor mentions!
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/BetterMentions
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/BetterMentions/BetterMentions.plugin.js
@@ -20,7 +20,7 @@ const [
 ] = Webpack.getBulk(
     { filter: Filters.bySource(".USER_MENTION)"), searchDefault: false },
     { filter: Filters.byStrings('USER_MENTION', "getNickname", "inlinePreview"), defaultExport: false },
-    { filter: Filters.bySource('.Z.hidePersonalInformation)', '.default.getUser(', 'mode:"username",'), searchDefault: false }
+    { filter: Filters.bySource('.A.hidePersonalInformation)', '.default.getUser(', 'mode:"username",'), searchDefault: false }
 );
 
 const { useStateFromStores } = BdApi.Hooks;
@@ -40,7 +40,7 @@ module.exports = class BetterMentions {
     }
 
     patchMentions() {
-        Patcher.after("BetterMentions", MentionModule, "Z", (_, [props], res) => {
+        Patcher.after("BetterMentions", MentionModule, "A", (_, [props], res) => {
             const innerProps = BdApi.Utils.findInTree(res, x => x?.position?.includes('right'), {
                 walkable: ['props', 'children']
             });
@@ -83,11 +83,11 @@ module.exports = class BetterMentions {
     }
 
     patchTextEditor() {
-        Patcher.after("BetterMentions", TextEditorMention, "cB", (_, [{ id, channelId }], res) => {
+        Patcher.after("BetterMentions", TextEditorMention, "M9", (_, [{ id, channelId }], res) => {
             const user = useStateFromStores([UserStore], () => UserStore.getUser(id));
             if (!user) return res;
 
-            return React.createElement(MentionComponent.Z, { 
+            return React.createElement(MentionComponent.A, { 
                 className: 'mention',
                 userId: id,
                 parsedUserId: id,

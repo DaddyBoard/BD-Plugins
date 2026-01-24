@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.1.2
+ * @version 9.1.3-BETA
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -36,10 +36,10 @@ const [
     { filter: m => m?.playNotificationSound }, // NotificationSoundModule
     { filter: Webpack.Filters.byPrototypeKeys("addReaction") }, // MessageConstructor
     { filter: Webpack.Filters.byStrings("transitionToGuild - Transitioning to"), searchExports: true }, // transitionTo
-    { filter: Webpack.Filters.byKeys("subscribe", "dispatch") }, // Dispatcher
+    { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
     { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
-    { filter: Webpack.Filters.bySource("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage") }, // hasThreadElementModule
-    { filter: m => String(m.type).includes('.messageListItem,"aria-setsize":-1') }, // Message
+    { filter: Webpack.Filters.byKeys("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage") }, // hasThreadElementModule
+    { filter: m => String(m.type).includes('Nt,"aria-setsize":-1') }, // Message
     { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
     { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
     { filter: Webpack.Filters.byStrings(".clearMentions(),", ".deleteRecentMention") }, // RecentMentionsInbox
@@ -75,7 +75,7 @@ const hasThreadElement = hasThreadElementModule.hasThread;
 const trailing = trailingModule.trailing;
 const UserFetchModule = Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Webpack.Filters.byStrings("USER_UPDATE", "Promise.resolve") })
 //const [ module2, key ] = Webpack.getWithKey(Filters.byStrings("PlatformTypes", "windowKey", "title"));
-const windowArea = BdApi.Webpack.getById("950796");
+const windowArea = BdApi.Webpack.getById("71855");
 
 const ChannelAckModule = (() => {
     const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
@@ -106,53 +106,12 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "9.1.2 - Fixed",
+            "title": "9.1.3 - Fixed",
             "type": "fixed",
             "items": [
-                "Discord update broke core functionality, this is fixed now.",
+                "Fixed for discord update.",
             ]
-        },
-        {
-            "title": "9.1.1 - Fixed",
-            "type": "fixed",
-            "items": [
-                "Fixed CSS breakage.",
-            ]
-        },
-        {
-            "title": "9.1.0 - Added",
-            "type": "added",
-            "items": [
-                "**__NEW__** Option in `Keyword Notifications` section for `Keyword Only Mode`. This will only show notifications if the content matches any of your rules. This essentially turns PingNotification into a standalone keyword tracking plugin.",
-            ]
-        },
-        {
-            "title": "9.1.0 - Improvements",
-            "type": "improved",
-            "items": [
-                "Regex patterns now display the index of the pattern that was matched instead of the result of the pattern itself.",
-                "Keyword Matching now correctly checks for matches where special characters are used. Words like `!test` will now match.",
-            ]
-        },
-        {
-            "title": "9.1.0 - Fixed",
-            "type": "fixed",
-            "items": [
-                "Discord CSS changes breaking our styling.",
-            ]
-        },
-        {
-            "title": "9.0.0",
-            "type": "added",
-            "items": [
-                "**__HIGHLY REQUESTED__** Notification History Popout! You can now view all notifications you've received in a popout window. Invoke it with the 'PN' button top right in the title bar",
-                "**__NEW__** Option in `Keyword Notifications` section, to flip behaviour between `Whitelist` and `Blacklist` mode.  ",
-                "Optimised progress bar. This should create less lag when high numbers of notifications are live.",
-                "Fixed `transitionTo` for Reaction Notifications, they now take you to the reacted message.",
-                "Greatly improved speed of clicking a notification to be taken to the message. (`transitionTo`)",
-                "Fixed hovering timestamps causing notifications to be forcefully destroyed."
-            ]
-        },
+        }
         // {
         //     "title": "8.6.0",
         //     "type": "fixed",
@@ -728,7 +687,7 @@ module.exports = class PingNotification {
     }
 
     patchTitleBar() {
-        Patcher.after("PN", windowArea, "TF", (_, [props], ret) => {
+        Patcher.after("PN", windowArea, "cq", (_, [props], ret) => {
             if (props.windowKey?.startsWith("DISCORD_")) return ret;
             if (props.trailing?.props?.children) {
                 props.trailing.props.children.splice(3, 0,
@@ -914,6 +873,7 @@ module.exports = class PingNotification {
         .ping-notification-media [class*="draggableWrapper"] {
             pointer-events: none !important;
         }
+
         .ping-notification [class*="hoverButtonGroup"],
         .ping-notification [class*="codeActions"],
         .ping-notification [class*="reactionBtn"] {
@@ -938,10 +898,10 @@ module.exports = class PingNotification {
             cursor: pointer !important;
         }
 
-        .ping-notification-messageContent [class*="-buttonContainer"],
-        .ping-notification-messageContent [class*="-header"],
-        .ping-notification-messageContent [class*="-avatar"],
-        .ping-notification-messageContent [class*="-avatarDecoration"],
+        .ping-notification-messageContent [class*="buttonContainer_"],
+        .ping-notification-messageContent [class*="header_"],
+        .ping-notification-messageContent [class*="avatar_"],
+        .ping-notification-messageContent [class*="avatarDecoration_"],
         .ping-notification-messageContent [class*="StatusEverywhereV2-Avatar"] {
             display: none !important;
         }
@@ -957,7 +917,7 @@ module.exports = class PingNotification {
         }
 
 
-        .ping-notification-messageContent [class*="-repliedMessage"] {
+        .ping-notification-messageContent [class*="repliedMessage_"] {
             padding-left: 20px !important;
             pointer-events: none !important;
         }
@@ -967,15 +927,15 @@ module.exports = class PingNotification {
             margin-left: 40px !important;
         }
 
-        .ping-notification-content [class*="-contents"] [class*="-markup"][class*="-messageContent"],
-        .ping-notification-content [class*="-contents"] [class*="-markup"],
-        .ping-notification-content [class*="-scrollbarGhostHairline"] {
+        .ping-notification-content [class*="contents_"] [class*="markup_"][class*="messageContent_"],
+        .ping-notification-content [class*="contents_"] [class*="markup_"],
+        .ping-notification-content [class*="scrollbarGhostHairline_"] {
             font-size: var(--ping-notification-content-font-size) !important;
         }
 
-        .ping-notification [class*="-repliedTextPreview"] [class*="-repliedTextContent"],
-        .ping-notification [class*="-username"],
-        .ping-notification [class*="-contents"] [class*="-message-content"] {
+        .ping-notification [class*="repliedTextPreview_"] [class*="repliedTextContent_"],
+        .ping-notification [class*="username_"],
+        .ping-notification [class*="contents_"] [class*="message-content_"] {
             font-size: calc(var(--ping-notification-content-font-size) * 0.85) !important;
         }
 
@@ -984,8 +944,8 @@ module.exports = class PingNotification {
             font-size: calc(var(--ping-notification-content-font-size) - 0.1rem) !important;
         }
 
-        .ping-notification [class*="-message"][class*="-selected"]:not([class*="-mentioned"]),
-        .ping-notification [class*="-message"]:hover:not([class*="-mentioned"]) {
+        .ping-notification [class*="message_"][class*="selected_"]:not([class*="mentioned_"]),
+        .ping-notification [class*="message_"]:hover:not([class*="mentioned_"]) {
             background: inherit !important;
         }
 
@@ -1118,12 +1078,12 @@ module.exports = class PingNotification {
         }
 
 
-        .pn-hist-messageContent [class*="-buttonContainer"] {
+        .pn-hist-messageContent [class*="buttonContainer_"] {
             display: none !important;
         }
 
-        .pn-hist-popout [class*="-hoverButtonGroup"],
-        .pn-hist-popout [class*="-codeActions"],
+        .pn-hist-popout [class*="hoverButtonGroup_"],
+        .pn-hist-popout [class*="codeActions_"],
         .pn-hist-popout [class*="reactionBtn"] {
             display: none !important;
         }
