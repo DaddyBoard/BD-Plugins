@@ -1648,16 +1648,16 @@ module.exports = class PingNotification {
                             }
                         };
                     }
-                    if (setting.id === 'simulateAudioNotificationReaction') {
+                    if (['simulateAudioNotificationReaction', 'sameChannelReactionNotifications'].includes(setting.id)) {
                         setting.disabled = !plugin.settings.enableReactionNotifications;
                     }
-                    if (setting.id === 'simulateAudioNotificationThread') {
+                    if (['simulateAudioNotificationThread', 'sameChannelThreadNotifications'].includes(setting.id)) {
                         setting.disabled = !plugin.settings.enableThreadNotifications;
                     }
                     if (['pinOnAFK', 'noLongerAFKBehavior', 'pinOnWindowNotVisible', 'noLongerWindowNotVisible'].includes(setting.id)) {
                         setting.disabled = !plugin.settings.showTimer;
                     }
-                    if (['simulateAudioNotification', 'exactMatch', 'showKeyword', 'keywordSearchScope', 'notificationKeywords', 'regexPatterns', 'ignoredServersKeywords', 'ignoredChannelsKeywords', 'keywordFilterMode'].includes(setting.id)) {
+                    if (['keywordOnlyMode', 'simulateAudioNotification', 'exactMatch', 'showKeyword', 'keywordSearchScope', 'notificationKeywords', 'regexPatterns', 'ignoredServersKeywords', 'ignoredChannelsKeywords', 'keywordFilterMode'].includes(setting.id)) {
                         setting.disabled = !plugin.settings.enableKeywordNotifications;
                     }
                         if (['maxWidth', 'maxHeight', 'hideOrangeBorderOnMentions', 'showTimer', 'privacyMode', 'popupLocation', 'usernameOrDisplayName'].includes(setting.id)) {
