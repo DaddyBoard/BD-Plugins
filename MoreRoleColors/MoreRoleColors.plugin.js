@@ -428,7 +428,7 @@ module.exports = class MoreRoleColors {
     }
 
     onSwitch() {
-        this.patchAccountArea();
+        if (this.settings.accountArea) this.patchAccountArea();
     }
 
     forceUpdateComponents() {
