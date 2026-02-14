@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.2.0
+ * @version 9.3.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -106,20 +106,10 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "9.2.0",
+            "title": "9.3.0",
             "type": "added",
             "items": [
-                "Various fixes and improvements to the new PN History feature. Reactions and Threads are now shown. Messages now show when they have been deleted, rather than just disappearing.",
-                "Added back the option to allow notifications from the channel you're currently in. Off by default",
-                "Added new option for allowing same-channel thread creation notifications to show. On by default",
-                "Added new option for allowing same-channel reactions notifications to show. On by default",
-                "You can now **right-click** or **ctrl click** the `PN` button in the titlebar to open the plugins settings.",
-                "Fixed syntaxing issue with regex patterns that would inhibit the use of flags. Thanks to `@notskrypt` for the report.",
-                "Fixed Clyde bot avatar not being displayed correctly.",
-                "Fixed issues with ManaContext - videos can now be fullscreened from within notifications, and various other 'issues' surrounding this context issue have been resolved. HUGE thanks to `@doggybootsy` for this fix, show some love.",
-                "PingNotification will now properly cleanup `PN` button when disabled.",
-                "",
-                "I plan on Making v10.0.0 be the 'customisation' update, where you will be able to style each segment of the notification to your liking. Stay tuned!"
+                "Adds the ability to whitelist/blacklist servers/channels from context menus"
             ]
         }
     ],
@@ -726,6 +716,139 @@ module.exports = class PingNotification {
         if (this.settings.autoSubscribeToAllServers) {
             this.autoSubscribeToAllServers();
         }
+
+        this.patchContextMenus();
+    }
+
+    patchContextMenus() {
+        this.contextMenuUnpatchers = [];
+
+        this.contextMenuUnpatchers.push(
+            BdApi.ContextMenu.patch("guild-context", (ret, props) => {
+                const guildId = props.guild?.id;
+                if (!guildId) return;
+
+                const isBlacklist = this.settings.keywordFilterMode === "blacklist";
+                const keywordLabel = isBlacklist ? "Blacklist Keywords" : "Whitelist Keywords";
+                
+                const ignoredServers = this.settings.ignoredServersKeywords?.split(",").map(s => s.trim()).filter(Boolean) || [];
+                const reactionsIgnored = this.settings.reactionsIgnoredServers?.split(",").map(s => s.trim()).filter(Boolean) || [];
+                const threadsIgnored = this.settings.threadsIgnoredServers?.split(",").map(s => s.trim()).filter(Boolean) || [];
+
+                const isKeywordIgnored = ignoredServers.includes(guildId);
+                const isReactionsIgnored = reactionsIgnored.includes(guildId);
+                const isThreadsIgnored = threadsIgnored.includes(guildId);
+
+                const toggleIgnoredServer = (listKey, currentList, id) => {
+                    let newList;
+                    if (currentList.includes(id)) {
+                        newList = currentList.filter(s => s !== id);
+                    } else {
+                        newList = [...currentList, id];
+                    }
+                    this.settings[listKey] = newList.join(", ");
+                    this.saveSettings(this.settings);
+                };
+
+                const menuItem = BdApi.ContextMenu.buildItem({
+                    type: "submenu",
+                    id: "pn-guild-submenu",
+                    label: "PingNotification",
+                    items: [
+                        {
+                            type: "toggle",
+                            id: "pn-guild-keywords",
+                            label: keywordLabel,
+                            checked: isKeywordIgnored,
+                            action: () => toggleIgnoredServer("ignoredServersKeywords", ignoredServers, guildId)
+                        },
+                        {
+                            type: "toggle",
+                            id: "pn-guild-reactions",
+                            label: "Reaction Notifications",
+                            checked: !isReactionsIgnored,
+                            action: () => toggleIgnoredServer("reactionsIgnoredServers", reactionsIgnored, guildId)
+                        },
+                        {
+                            type: "toggle",
+                            id: "pn-guild-threads",
+                            label: "Thread Notifications",
+                            checked: !isThreadsIgnored,
+                            action: () => toggleIgnoredServer("threadsIgnoredServers", threadsIgnored, guildId)
+                        }
+                    ]
+                });
+
+                ret.props.children.push(menuItem);
+            })
+        );
+
+        this.contextMenuUnpatchers.push(
+            BdApi.ContextMenu.patch("channel-context", (ret, props) => {
+                const channelId = props.channel?.id;
+                if (!channelId) return;
+
+                const isBlacklist = this.settings.keywordFilterMode === "blacklist";
+                const keywordLabel = isBlacklist ? "Blacklist Keywords" : "Whitelist Keywords";
+
+                const ignoredChannels = this.settings.ignoredChannelsKeywords?.split(",").map(s => s.trim()).filter(Boolean) || [];
+                const reactionsIgnored = this.settings.reactionsIgnoredChannels?.split(",").map(s => s.trim()).filter(Boolean) || [];
+                const threadsIgnored = this.settings.threadsIgnoredChannels?.split(",").map(s => s.trim()).filter(Boolean) || [];
+
+                const isKeywordIgnored = ignoredChannels.includes(channelId);
+                const isReactionsIgnored = reactionsIgnored.includes(channelId);
+                const isThreadsIgnored = threadsIgnored.includes(channelId);
+
+                const toggleIgnoredChannel = (listKey, currentList, id) => {
+                    let newList;
+                    if (currentList.includes(id)) {
+                        newList = currentList.filter(s => s !== id);
+                    } else {
+                        newList = [...currentList, id];
+                    }
+                    this.settings[listKey] = newList.join(", ");
+                    this.saveSettings(this.settings);
+                };
+
+                const menuItem = BdApi.ContextMenu.buildItem({
+                    type: "submenu",
+                    id: "pn-channel-submenu",
+                    label: "PingNotification",
+                    items: [
+                        {
+                            type: "toggle",
+                            id: "pn-channel-keywords",
+                            label: keywordLabel,
+                            checked: isKeywordIgnored,
+                            action: () => toggleIgnoredChannel("ignoredChannelsKeywords", ignoredChannels, channelId)
+                        },
+                        {
+                            type: "toggle",
+                            id: "pn-channel-reactions",
+                            label: "Reaction Notifications",
+                            checked: !isReactionsIgnored,
+                            action: () => toggleIgnoredChannel("reactionsIgnoredChannels", reactionsIgnored, channelId)
+                        },
+                        {
+                            type: "toggle",
+                            id: "pn-channel-threads",
+                            label: "Thread Notifications",
+                            checked: !isThreadsIgnored,
+                            action: () => toggleIgnoredChannel("threadsIgnoredChannels", threadsIgnored, channelId)
+                        }
+                    ]
+                });
+
+                ret.props.children.push(menuItem);
+            })
+        );
+    }
+
+    unpatchContextMenus() {
+        if (this.contextMenuUnpatchers) {
+            this.contextMenuUnpatchers.forEach(unpatch => unpatch());
+            this.contextMenuUnpatchers = [];
+        }
     }
 
     patchTitleBar() {
@@ -761,6 +884,7 @@ module.exports = class PingNotification {
         this.removeAllNotifications();
         BdApi.DOM.removeStyle("PingNotificationStyles");
         Patcher.unpatchAll("PN");
+        this.unpatchContextMenus();
         if (this.settings.showHistoryButton) {
             this.unpatchTitleBar();
         }

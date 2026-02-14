@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.5
+* @version 1.2.6
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -35,7 +35,7 @@ const config = {
             "title": "Fixed",
             "type": "fixed",
             "items": [
-                "Fixed for breaking discord update."
+                "Fixes for discord updates."
             ]
         }
     ],
@@ -125,6 +125,17 @@ module.exports = class PeekMessageLinks {
                 const newSettings = { ...this.settings, [id]: value };
                 this.saveSettings(newSettings);
             }
+        });
+    }
+
+    inMana(node) {
+        let item = BdApi.ReactUtils.getInternalInstance(document.querySelector("div[class^=app_] > div[class^=app_]"));
+        while (!item.memoizedProps?.value?.isWindowFocused) {
+            item = item.return;
+        }
+        return React.createElement(item.type, {
+            value: item.memoizedProps.value,
+            children: node
         });
     }
 
@@ -319,12 +330,12 @@ module.exports = class PeekMessageLinks {
         });
 
         DOM.addStyle('peek-message-popup-style', `
-            .peek-message-popup [class*="-buttonContainer"] {
+            .peek-message-popup [class*="buttonContainer"] {
                 display: none !important;
             }
 
-            .peek-message-popup [class*="message"][class*="-selected"]:not([class*="-mentioned"]),
-            .peek-message-popup [class*="message"]:hover:not([class*="-mentioned"]) {
+            .peek-message-popup [class*="message"][class*="selected"]:not([class*="mentioned"]),
+            .peek-message-popup [class*="message"]:hover:not([class*="mentioned"]) {
                 background: inherit !important;
             }
             
@@ -391,7 +402,7 @@ module.exports = class PeekMessageLinks {
                     maxHeight: `${adjustedMaxHeight}px`,
                     overflowY: 'scroll',
                     boxShadow: 'var(--elevation-high)',
-                    zIndex: 1001,
+                    zIndex: 1002,
                     opacity: 1,
                     border: '1px solid var(--background-base-lowest)',
                     msOverflowStyle: 'none',
@@ -430,7 +441,7 @@ module.exports = class PeekMessageLinks {
         };
 
         const root = createRoot(popupElement);
-        root.render(React.createElement(PopupComponent));
+        root.render(this.inMana(React.createElement(PopupComponent)));
         popupElement.root = root;
         
         return popupElement;
