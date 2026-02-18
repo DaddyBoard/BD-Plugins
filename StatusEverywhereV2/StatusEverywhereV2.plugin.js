@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.8
+* @version 1.0.9
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -22,7 +22,7 @@ const useUserContextMenu = Webpack.getBySource("getUserTag", "referencedUsername
 const Popout = Webpack.getByStrings("Unsupported animation config:",{searchExports:true})
 const userPopout = Webpack.getByStrings('"SENDING"===', 'renderUserGuildPopout: channel should never be');
 const loaduser = BdApi.Webpack.getByStrings("preloadUserProfileForPopout", 'Invalid arguments');
-const loaduserArg = Webpack.getByStrings('searchParams.set("passthrough"', '.concat(location.protocol)', 'AVATAR_DECORATION_PRESETS', { searchExports: true });
+const loaduserArg = BdApi.Webpack.getById("486020")
 
 const VoiceChatAvatar = Webpack.getBySource("avatarContainer", "getAvatarURL");
 const ChatAvatar = Webpack.getBySource("AVATAR", "analyticsLocations", "showCommunicationDisabledStyles");
@@ -250,10 +250,12 @@ module.exports = class StatusEverywhereV2 {
             const [show, setShow] = React.useState(false);
             const contextMenuHandler = useUserContextMenu(message.author?.id, channel?.id)
 
+            if (message.author?.bot && message.author.discriminator === "0000") return;
+
             function preloadUserPopout() {
                 return loaduser(
                     message.author.id,
-                    null != author.guildMemberAvatar && null != guildId ? loaduserArg.ZP.getGuildMemberAvatarURLSimple({
+                    null != author.guildMemberAvatar && null != guildId ? loaduserArg.Ay.getGuildMemberAvatarURLSimple({
                         guildId,
                         userId: author.id,
                         avatar: author.guildMemberAvatar,
@@ -267,6 +269,7 @@ module.exports = class StatusEverywhereV2 {
             const presence = useStateFromStores([PresenceStore], function () { return PresenceStore.getStatus(message.author.id); });
             const Speaking = useStateFromStores([SpeakingStore], function () { return SpeakingStore.isSpeaking(message.author.id); });
             const isMobile = useStateFromStores([PresenceStore], function () { return PresenceStore.isMobileOnline(message.author.id); });
+            const isVR = useStateFromStores([PresenceStore], function () { return PresenceStore.isVROnline?.(message.author.id) ?? !!PresenceStore.getClientStatus?.(message.author.id)?.vr; });
 
             let avatarUrlSrc = message.author.getAvatarURL(SelectedGuildStore.getGuildId());
             if (!avatarUrlSrc) {
@@ -285,6 +288,7 @@ module.exports = class StatusEverywhereV2 {
                     size: "SIZE_40",
                     src: avatarUrlSrc,
                     isMobile: isMobile,
+                    isVR: isVR,
                     status: presence
                 };
 
@@ -302,7 +306,7 @@ module.exports = class StatusEverywhereV2 {
                         return React.createElement("div", {
                             ref: popoutRef,
                             className: "StatusEverywhereV2-Avatar",
-                            onClick: () => setShow(true),
+                            onClick: () => setShow(prev => !prev),
                             onContextMenu: contextMenuHandler,
                             onMouseDown: e.onMouseDown
 
@@ -317,7 +321,7 @@ module.exports = class StatusEverywhereV2 {
     patchVoiceChatAvatars() {
         const VoiceChatAvatarComponent = (props) => {
             const {nick, user, showSpeakingStatus} = props;
-            const [presence,isMobile] = useStateFromStores([PresenceStore], ()=>[PresenceStore.getStatus(user.id), PresenceStore.isMobileOnline(user.id)]);
+            const [presence,isMobile,isVR] = useStateFromStores([PresenceStore], ()=>[PresenceStore.getStatus(user.id), PresenceStore.isMobileOnline(user.id), PresenceStore.isVROnline?.(user.id) ?? !!PresenceStore.getClientStatus?.(user.id)?.vr]);
 
             let avatarUrlSrc = user.getAvatarURL(SelectedGuildStore.getGuildId());
             if (!avatarUrlSrc) {
@@ -331,6 +335,7 @@ module.exports = class StatusEverywhereV2 {
                 size: "SIZE_24",
                 src: avatarUrlSrc,
                 isMobile: isMobile,
+                isVR: isVR,
                 status: presence
             };
 
