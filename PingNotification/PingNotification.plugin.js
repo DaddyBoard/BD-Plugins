@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.3.0
+ * @version 9.3.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -106,10 +106,10 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "9.3.0",
+            "title": "9.3.1",
             "type": "added",
             "items": [
-                "Adds the ability to whitelist/blacklist servers/channels from context menus"
+                "You can now hold shift to reveal the `Jump to` button on messages showing `MESSAGE DELETED`, more info [here](https://github.com/DaddyBoard/BD-Plugins/issues/79)."
             ]
         }
     ],
@@ -2580,7 +2580,7 @@ function addMessage(message) {
 
 let renderMessage;
 
-function RenderMessage({message, item, onClickCallback}) {
+function RenderMessage({message, item, onClickCallback, shiftHeld}) {
     if (typeof renderMessage === "undefined") {
         renderMessage = RecentMentionsInbox({}).props.renderMessage;
     }
@@ -2597,7 +2597,7 @@ function RenderMessage({message, item, onClickCallback}) {
 
     const messageContainer = node.type(node.props)?.props?.children?.[1];
     
-    if (message.state === "SEND_FAILED") {
+    if (message.state === "SEND_FAILED" && !shiftHeld) {
         return React.cloneElement(messageContainer, {}, messageContainer.props.children[1]);
     }
 
@@ -2677,14 +2677,18 @@ function createPopout(pluginInstance) {
 class PopoutContent extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { displayCount: 10 };
+        this.state = { displayCount: 10, shiftHeld: false };
         this.scrollRef = React.createRef();
         this.sentinelRef = React.createRef();
         this.observer = null;
+        this._onKeyDown = (e) => { if (e.key === 'Shift') this.setState({ shiftHeld: true }); };
+        this._onKeyUp = (e) => { if (e.key === 'Shift') this.setState({ shiftHeld: false }); };
     }
 
     componentDidMount() {
         this.setupObserver();
+        window.addEventListener('keydown', this._onKeyDown);
+        window.addEventListener('keyup', this._onKeyUp);
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -2697,6 +2701,8 @@ class PopoutContent extends React.Component {
         if (this.observer) {
             this.observer.disconnect();
         }
+        window.removeEventListener('keydown', this._onKeyDown);
+        window.removeEventListener('keyup', this._onKeyUp);
     }
 
     setupObserver() {
@@ -2719,7 +2725,7 @@ class PopoutContent extends React.Component {
 
     render() {
         const { pluginInstance, parentComponent } = this.props;
-        const { displayCount } = this.state;
+        const { displayCount, shiftHeld } = this.state;
         
         const allMessagesReversed = pluginInstance.sessionMessages.slice().reverse();
         const messagesToDisplay = allMessagesReversed.slice(0, displayCount);
@@ -2854,7 +2860,8 @@ class PopoutContent extends React.Component {
                                 React.createElement(RenderMessage, {
                                     message: message,
                                     item: item,
-                                    onClickCallback: null
+                                    onClickCallback: null,
+                                    shiftHeld: shiftHeld
                                 })
                             ));
 

@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.10
+* @version 2.0.11
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,11 +27,12 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.10 - Fixed",
+            "title": "2.0.11 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixed account area coloring not updating when switching servers under certain conditions",
-                "Fixes for discord update"
+                "Fixed account area coloring not working, ty @zacam",
+                "Fixed profile popout not coloring when invoked via chat avatar/username, ty @zacam",
+                "Compatibility fix for `ShowConnections` plugin, ty @zacam"
             ]
         }
     ],
@@ -653,7 +654,7 @@ module.exports = class MoreRoleColors {
                 return;
             }
 
-            const accountArea = document.querySelector("[class^=avatarWrapper_]");
+            const accountArea = document.querySelector("[class^=accountPopoutButtonWrapper_]");
             if (!accountArea) {
                 setTimeout(() => patchAccountAreaWithRetry(attempts + 1), 1000);
                 return;
@@ -884,16 +885,15 @@ module.exports = class MoreRoleColors {
                         const res = Reflect.apply(target, thisArg, args);
 
                         const displayProfile = args[0].tags.props.displayProfile;
+                        const guildId = displayProfile?.guildId ?? args[0].guildId;
 
-                        const member = GuildMemberStore.getMember(displayProfile?.guildId, displayProfile?.userId);
-
-                        if (!res?.props) return res;
+                        const member = GuildMemberStore.getMember(guildId, displayProfile?.userId);
 
                         const userObject = BdApi.Utils.findInTree(res,x=>x?.className?.includes('nickname'), {walkable: ['props','children']})
                         if (!userObject) return res;
                         
                         if (member?.colorString) {
-                            const colorObject = pluginInstance.getColorObjectForMember(displayProfile?.guildId, member);
+                            const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
                             const tempElement = { style: {} };
                             pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.userProfileGradient);
                             
