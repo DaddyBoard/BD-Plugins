@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.3.1
+ * @version 9.3.2
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -105,6 +105,13 @@ let liveMessages = [];
 
 const config = {
     changelog: [
+        {
+            "title": "9.3.2",
+            "type": "added",
+            "items": [
+                "Added (and fixed) context menu options to ignore `Black/White list` for keywords, `reactions` and `threads` notifications. Options for both server and channel independently!"
+            ]
+        },
         {
             "title": "9.3.1",
             "type": "added",
@@ -1309,6 +1316,12 @@ module.exports = class PingNotification {
         }
         if (!event.isNewlyCreated) return;
         if (event.channel.ownerId === UserStore.getCurrentUser().id) return;
+
+        const threadsIgnoredServers = this.settings.threadsIgnoredServers?.split(",").map(s => s.trim()).filter(Boolean) || [];
+        const threadsIgnoredChannels = this.settings.threadsIgnoredChannels?.split(",").map(s => s.trim()).filter(Boolean) || [];
+        if (threadsIgnoredServers.includes(parentChannel?.guild_id)) return;
+        if (threadsIgnoredChannels.includes(parentChannel?.id)) return;
+
         const status = UserGuildSettingsStore.getNewForumThreadsCreated(parentChannel)
         if (status) {
             const messageToConstruct = {
@@ -1379,12 +1392,17 @@ module.exports = class PingNotification {
         }
 
         if (event.messageAuthorId !== currentUser.id) return;
-        
+
+        const channel = ChannelStore.getChannel(event.channelId);
+        const reactionsIgnoredServers = this.settings.reactionsIgnoredServers?.split(",").map(s => s.trim()).filter(Boolean) || [];
+        const reactionsIgnoredChannels = this.settings.reactionsIgnoredChannels?.split(",").map(s => s.trim()).filter(Boolean) || [];
+        if (reactionsIgnoredServers.includes(channel?.guild_id)) return;
+        if (reactionsIgnoredChannels.includes(event.channelId)) return;
+
         let reacter = UserStore.getUser(event.userId);
         if (!reacter) {
             reacter = await UserFetchModule.fetchUser(event.userId);
         }
-        const channel = ChannelStore.getChannel(event.channelId);
 
         if (reacter.id === currentUser.id) return;
         if (channel.id === SelectedChannelStore.getChannelId() && !this.settings.sameChannelReactionNotifications) return;
