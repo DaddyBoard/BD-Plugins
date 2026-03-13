@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.3.2
+ * @version 9.3.3
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -38,7 +38,7 @@ const [
     { filter: Webpack.Filters.byStrings("transitionToGuild - Transitioning to"), searchExports: true }, // transitionTo
     { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
     { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
-    { filter: Webpack.Filters.byKeys("hasThread", "nitroAuthorBadgeContainer", "isSystemMessage") }, // hasThreadElementModule
+    { filter: Webpack.Filters.byKeys("hasThread") }, // hasThreadElementModule
     { filter: m => String(m.type).includes('Nt,"aria-setsize":-1') }, // Message
     { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
     { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
@@ -106,17 +106,10 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "9.3.2",
+            "title": "9.3.3",
             "type": "added",
             "items": [
-                "Added (and fixed) context menu options to ignore `Black/White list` for keywords, `reactions` and `threads` notifications. Options for both server and channel independently!"
-            ]
-        },
-        {
-            "title": "9.3.1",
-            "type": "added",
-            "items": [
-                "You can now hold shift to reveal the `Jump to` button on messages showing `MESSAGE DELETED`, more info [here](https://github.com/DaddyBoard/BD-Plugins/issues/79)."
+                "Break-fix update."
             ]
         }
     ],
