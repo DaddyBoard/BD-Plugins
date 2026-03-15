@@ -23,14 +23,7 @@ Out of the box, PingNotification will alert for all messages that you physically
 
 ## ⚙️ Configuration
 
-Navigate to `BetterDiscord > Plugins > PingNotification settings` to:
-- Customise coloring of user mentions, role mentions and more.
-- Customise length of notification shown on screen
-- Change display location of the notification window
-- Enable 'Privacy Mode' which hides all message content and attachments behind a `hover-to-reveal` system
-- Configure the ability to apply 'Privacy Mode' to NSFW channels
-- Customise size of the popup
-And much more!
+Navigate to `BetterDiscord > Plugins > PingNotification settings`
 
 ## 🐛 Known Issues
 
