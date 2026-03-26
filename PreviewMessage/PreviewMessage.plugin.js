@@ -1,11 +1,13 @@
 /**
  * @name PreviewMessage
- * @author DaddyBoard
- * @description Allows you to preview a message before you send it. Original idea by TheCommieAxolotl, rewritten by DaddyBoard.
+ * @author TheCommieAxolotl
+ * @description Allows you to preview a message before you send it.
  * @version 1.0.3
- * @authorId 241334335884492810
- * @invite ggNWGDV7e2
- * @source https://github.com/DaddyBoard/BD-Plugins
+ * @authorId 538487970408300544
+ * @invite 5BSWtSM3XU
+ * @source https://github.com/TheCommieAxolotl/BetterDiscord-Stuff/tree/main/PreviewMessage
+ * @updateurl https://raw.githubusercontent.com/TheCommieAxolotl/BetterDiscord-Stuff/main/PreviewMessage/PreviewMessage.plugin.js
+ * @donate https://github.com/sponsors/thecommieaxolotl
  */
 
 module.exports = (() => {
