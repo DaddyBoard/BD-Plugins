@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.3.3
+ * @version 9.4.0
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -64,7 +64,8 @@ const {
     MessageStore,
     ReferencedMessageStore,
     GuildRoleStore,
-    PresenceStore
+    PresenceStore,
+    SpeakingStore
 } = BdApi.Webpack.Stores;
 
 if (!NotificationUtils) {
@@ -74,8 +75,10 @@ if (!NotificationUtils) {
 const hasThreadElement = hasThreadElementModule.hasThread;
 const trailing = trailingModule.trailing;
 const UserFetchModule = Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Webpack.Filters.byStrings("USER_UPDATE", "Promise.resolve") })
-//const [ module2, key ] = Webpack.getWithKey(Filters.byStrings("PlatformTypes", "windowKey", "title"));
 const windowArea = BdApi.Webpack.getById("71855");
+
+const MemberAreaAvatarFilter = BdApi.Webpack.Filters.byStrings("statusColor", "isTyping");
+const MemberAreaAvatar = BdApi.Webpack.getModule(x => MemberAreaAvatarFilter(x?.type), { searchExports: true });
 
 const ChannelAckModule = (() => {
     const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
@@ -106,10 +109,10 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "9.3.3",
+            "title": "9.4.0",
             "type": "added",
             "items": [
-                "Break-fix update."
+                "Swapped out the custom avatar element for discords member-list avatar (So you will now see the users status on the avatar)."
             ]
         }
     ],
@@ -972,11 +975,6 @@ module.exports = class PingNotification {
             align-items: center;
         }
             
-        .ping-notification-avatar {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-        }
         .ping-notification-title {
             flex-grow: 1;
             font-weight: bold;
@@ -2068,23 +2066,22 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
         return message.author.username;
     }, [settings.showNicknames, settings.useFriendNicknames, member?.nick, message.author.username, settings.usernameOrDisplayName, channel.guild_id]);
 
-    const avatarUrl = React.useMemo(() => {
-        let url;
-        if (message.author.id === "1") {
-            url = "https://discord.com/assets/9380e4b5bd8d267c.png";
-        } else if (settings.useServerProfilePictures && channel.guild_id) {
+    const presence = useStateFromStores([PresenceStore], () => PresenceStore.getStatus(message.author.id));
+    const isMobile = useStateFromStores([PresenceStore], () => PresenceStore.isMobileOnline(message.author.id));
+    const isVR = useStateFromStores([PresenceStore], () => PresenceStore.isVROnline?.(message.author.id) ?? !!PresenceStore.getClientStatus?.(message.author.id)?.vr);
+    const isSpeaking = useStateFromStores([SpeakingStore], () => SpeakingStore.isSpeaking(message.author.id));
+
+    const avatarUrlSrc = React.useMemo(() => {
+        if (message.author.id === "1") return "https://discord.com/assets/9380e4b5bd8d267c.png";
+        if (settings.useServerProfilePictures && channel.guild_id) {
             try {
-                url = user.getAvatarURL(channel.guild_id) || message.author.avatar;
-            } catch (error) {
-                url = message.author.avatar;
+                return user?.getAvatarURL(channel.guild_id) || `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}`;
+            } catch (e) {
+                return `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}`;
             }
-        } else if (message.author.avatar) {
-            url = `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}.png?size=128`;
-        } else {
-            url = `https://cdn.discordapp.com/embed/avatars/${parseInt(message.author.discriminator) % 5}.png`;
         }
-        return url;
-    }, [message.author, settings.useServerProfilePictures, channel.guild_id]);
+        return user?.getAvatarURL?.() || `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}` || `https://cdn.discordapp.com/embed/avatars/${parseInt(message.author.discriminator) % 5}.png`;
+    }, [message.author, settings.useServerProfilePictures, channel.guild_id, user]);
 
     const handleSwipe = (e) => {
         const startX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -2265,17 +2262,35 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
         }
     },
         React.createElement('div', { className: "ping-notification-header" },
-            React.createElement('img', { 
-                src: avatarUrl, 
-                alt: "Avatar", 
+            React.createElement('div', {
                 className: "ping-notification-avatar",
                 style: {
                     width: `${avatarSize}px`,
                     height: `${avatarSize}px`,
-                    borderRadius: '50%',
-                    border: `${Math.round(2 * dynamicScale)}px solid var(--brand-experiment)`,
+                    flexShrink: 0,
+                    position: 'relative',
+                    overflow: 'visible',
                 }
-            }),
+            }, React.createElement('div', {
+                style: {
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: `translate(-50%, -50%) scale(${avatarSize / 40})`,
+                    transformOrigin: 'center center',
+                }
+            }, React.createElement(MemberAreaAvatar, {
+                "aria-label": message.author.username,
+                avatarDecoration: message.author.avatarDecorationData
+                    ? `https://cdn.discordapp.com/avatar-decoration-presets/${message.author.avatarDecorationData.asset}.png?size=44&passthrough=false`
+                    : null,
+                isSpeaking: isSpeaking,
+                size: "SIZE_40",
+                src: avatarUrlSrc,
+                isMobile: isMobile,
+                isVR: isVR,
+                status: presence,
+            }))),
             React.createElement('div', { 
                 className: "ping-notification-title",
                 style: { 
