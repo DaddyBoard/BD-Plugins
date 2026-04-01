@@ -2,7 +2,7 @@
 * @name PreviewMessage
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.1.0
+* @version 1.2.0
 * @description Allows you to preview a message before you send it. Original idea by TheCommieAxolotl, rewritten and maintained by DaddyBoard.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -28,7 +28,7 @@ function PreviewButton({ channel }) {
                 onClick: () => {
                     const draft = DraftStore.getDraft(channel.id, 0);
                     if (draft) {
-                        if (draft.length > 2000 && Plugins.isEnabled("SplitLargeMessages")){
+                        if (Plugins.isEnabled("SplitLargeMessages")){
                             const messageSplitter = Plugins.get("SplitLargeMessages").instance;
 
                             var splitMessages = [""];
@@ -39,15 +39,15 @@ function PreviewButton({ channel }) {
                             } catch (e){
                                 MessageActions.sendBotMessage(channel.id, "Warning: SplitLargeMessages threw an error and likely won't split your messages or the developer changed how splitting is implemented.")
                             }
-                            if (splitMessages.length > 1){
-                                for (const message of splitMessages){
-                                    MessageActions.sendBotMessage(channel.id, format(message, channel.id));
-                                }
+
+                            for (const message of splitMessages){
+                                MessageActions.sendBotMessage(channel.id, format(message, channel.id));
                             }
+                        }else{
+
+                            MessageActions.sendBotMessage(channel.id, format(draft, channel.id));
+
                         }
-
-
-                        MessageActions.sendBotMessage(channel.id, format(draft, channel.id));
                     }
                 }
             },
@@ -97,27 +97,6 @@ function format(originalText, cID){
         }
     }
 
-    if (Plugins.isEnabled("Zalgo")){
-        
-        const zalgo = Plugins.get("Zalgo").instance;
-        try{
-            if (zalgo?.doZalgo){
-                const escapeSpecial = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const startChars = escapeSpecial(zalgo.settings.startCharacters || '{{');
-                const endChars = escapeSpecial(zalgo.settings.endCharacters || '}}');
-                const regex = new RegExp(startChars + "(?:(?:(?:(o|b))?,?)?(?:(r)(\d+(?:\.\d+)?)?,?)?(?:(\d+(?:\.\d+)?)-)?(\d+(?:\.\d+)?)?\:)?((?:(?!{{).)*?)" + endChars);
-                if (regex.test(text)){                        
-                    text = text.replace(regex, zalgo.doZalgo.bind(zalgo));
-                    if (text.length > 2000) {
-                        MessageActions.sendBotMessage(cID, "The following message exceeded 2000 characters due to Zalgo and may not be able to sent.");
-                    }
-                }
-            }
-        } catch (e){
-            MessageActions.sendBotMessage(cID, "Warning: Zalgo threw an error and likely won't format your text or the developer changed how the plugin changes text.\n"+e);
-        }
-    }
-
     if (Plugins.isEnabled("BetterFormattingRedux")){
         
         const betterFormatting = Plugins.get("BetterFormattingRedux").instance;
@@ -126,7 +105,7 @@ function format(originalText, cID){
                 text = betterFormatting.format(text);
             }
         } catch (e){
-            MessageActions.sendBotMessage(cID, "Warning: BetterFormattingRedux threw an error and likely won't format your text or the developted changed how the plugin changes text.");
+            MessageActions.sendBotMessage(cID, "Warning: BetterFormattingRedux threw an error and likely won't format your text or the developter changed how the plugin changes text.");
         }
     }
 
@@ -138,7 +117,7 @@ function format(originalText, cID){
                 text = vriska.processText(text);
             }
         } catch (e){
-            MessageActions.sendBotMessage(cID, "Warning: Vriska'sTypingQuirk threw an error and likely won't format your text or the developted changed how the plugin changes text.");
+            MessageActions.sendBotMessage(cID, "Warning: Vriska'sTypingQuirk threw an error and likely won't format your text or the developter changed how the plugin changes text.");
         }
     }
 
