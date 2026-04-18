@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.9
+* @version 1.0.10
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -36,10 +36,10 @@ const joinedElements = avatarElement1.userAvatar + " " + avatarElement2.avatar +
 const config = {
     changelog: [
         {
-            "title": "v1.0.8",
+            "title": "v1.0.10",
             "type": "fixed",
             "items": [
-                "Fixed for discord update."
+                "Fixed [#84](https://github.com/DaddyBoard/BD-Plugins/issues/84), thank you Miniontoby."
             ]
         }
     ],
@@ -251,6 +251,7 @@ module.exports = class StatusEverywhereV2 {
             const contextMenuHandler = useUserContextMenu(message.author?.id, channel?.id)
 
             if (message.author?.bot && message.author.discriminator === "0000") return;
+            if (props.channel === undefined) return;
 
             function preloadUserPopout() {
                 return loaduser(
