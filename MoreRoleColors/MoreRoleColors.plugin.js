@@ -714,7 +714,7 @@ module.exports = class MoreRoleColors {
     }
 
     patchTextEditor() {
-        const [ module, key ] = BdApi.Webpack.getWithKey(BdApi.Webpack.Filters.byStrings(".hidePersonalInformation", "#", "<@", ".discriminator"));
+        const [ module, key ] = BdApi.Webpack.getWithKey(BdApi.Webpack.Filters.byStrings(".hidePersonalInformation", ".discriminator"));
         const pluginInstance = this;
         BdApi.Patcher.after("MoreRoleColors-textEditor", module, key, (that, [{ id, guildId }], res) => {
             const member = GuildMemberStore.getMember(guildId, id);
