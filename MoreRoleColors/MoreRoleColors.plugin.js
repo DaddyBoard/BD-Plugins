@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.12
+* @version 2.0.13
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,10 +27,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.12 - Fixed",
+            "title": "2.0.13 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixed breaking-discord update."
+                "Fixed breaking-discord update. Mentions in Text Editor work now"
             ]
         }
     ],
@@ -714,36 +714,58 @@ module.exports = class MoreRoleColors {
     }
 
     patchTextEditor() {
-        const [ module, key ] = BdApi.Webpack.getWithKey(BdApi.Webpack.Filters.byStrings(".hidePersonalInformation", ".discriminator"));
-        const pluginInstance = this;
-        BdApi.Patcher.after("MoreRoleColors-textEditor", module, key, (that, [{ id, guildId }], res) => {
-            const member = GuildMemberStore.getMember(guildId, id);
-            if (!member?.colorString) return res;
+        const TextEditorMention = getBySource("ChannelEditor.tsx");
+        if (!TextEditorMention?.A?.prototype?.render) return;
 
-            const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
-            const color = parseInt(member.colorString.slice(1), 16);
-            const innerMention = res.props.children?.props?.children;
-            
-            if (!innerMention?.props) return res;
-            
-            return BdApi.React.cloneElement(res, {
-                children: BdApi.React.cloneElement(res.props.children, {
-                    children: BdApi.React.cloneElement(innerMention, {
-                        ...innerMention.props,
-                        color,
-                        ...(pluginInstance.settings.textEditorGradient && 
-                            GuildStore.getGuild(guildId)?.features?.has?.("ENHANCED_ROLE_COLORS") &&
-                            colorObject.colorStrings?.primaryColor && colorObject.colorStrings?.secondaryColor && {
-                                roleColors: {
-                                    primaryColor: colorObject.colorStrings.primaryColor,
-                                    secondaryColor: colorObject.colorStrings.secondaryColor,
-                                    tertiaryColor: colorObject.colorStrings.tertiaryColor || null
-                                }
-                            })
-                    })
-                })
+        const probe = TextEditorMention.A.prototype.render.call({
+            props: {
+                type: {},
+                textValue: "",
+                useSlate: true,
+                channel: {}
+            },
+            state: {
+                popup: {}
+            },
+            getPlaceholder: () => {}
+        });
+
+        const renderElementProto = ReactUtils.wrapInHooks(probe.props.children[2].type)(probe.props.children[2].props).props.children[1].props.children.type.prototype;
+
+        this.textEditorNodePatcher = ReactUtils.createNodePatcher();
+        const pluginInstance = this;
+
+        Patcher.after("MoreRoleColors-textEditor", renderElementProto, "renderElement", (_, [ele], res) => {
+            if (ele?.element?.type !== "userMention") return;
+
+            pluginInstance.textEditorNodePatcher.patch(res.props.children[0], (_props, ret) => {
+                const { id, guildId } = _props;
+                if (!id || !guildId) return;
+
+                const member = GuildMemberStore.getMember(guildId, id);
+                if (!member?.colorString) return;
+
+                const inner = ret.props.children?.props?.children;
+                if (!inner?.props) return;
+
+                const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
+                const color = parseInt(member.colorString.slice(1), 16);
+
+                ret.props.children.props.children = React.cloneElement(inner, {
+                    ...inner.props,
+                    color,
+                    ...(pluginInstance.settings.textEditorGradient &&
+                        GuildStore.getGuild(guildId)?.features?.has?.("ENHANCED_ROLE_COLORS") &&
+                        colorObject.colorStrings?.primaryColor && colorObject.colorStrings?.secondaryColor && {
+                            roleColors: {
+                                primaryColor: colorObject.colorStrings.primaryColor,
+                                secondaryColor: colorObject.colorStrings.secondaryColor,
+                                tertiaryColor: colorObject.colorStrings.tertiaryColor || null
+                            }
+                        })
+                });
             });
-        }); 
+        });
     }
 
     patchAuditLog() {

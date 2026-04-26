@@ -2,7 +2,7 @@
 * @name PreviewMessage
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.1.0
+* @version 1.1.1
 * @description Allows you to preview a message before you send it. Original idea by TheCommieAxolotl, rewritten and maintained by DaddyBoard.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -13,7 +13,7 @@ const { Webpack, React, Patcher } = BdApi;
 const DraftStore = Webpack.getModule((m) => m.getDraft);
 const MessageActions = Webpack.getModule((m) => m.sendBotMessage);
 const ChatButtonsGroup = Webpack.getBySource("showAllButtons", "promotionsByType")?.A;
-const ChatButton = Webpack.getBySource("CHAT_INPUT_BUTTON_NOTIFICATION")?.A;
+const ChatButton = Webpack.getBySource("CHAT_INPUT_BUTTON_NOTIFICATION", "animated.div")?.A;
 const Tooltip = BdApi.Components.Tooltip;
 
 function PreviewButton({ channel }) {

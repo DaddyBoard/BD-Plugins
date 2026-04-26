@@ -1,7 +1,7 @@
 /**
 * @name BetterMentions
 * @author DaddyBoard
-* @version 1.0.1
+* @version 1.0.2
 * @description Adds profile pictures to mentions and enables click-to-profile on text editor mentions!
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/BetterMentions
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/BetterMentions/BetterMentions.plugin.js
@@ -20,10 +20,8 @@ const [
 ] = Webpack.getBulk(
     { filter: Filters.bySource(".USER_MENTION)"), searchDefault: false },
     { filter: Filters.byStrings('USER_MENTION', "getNickname", "inlinePreview"), defaultExport: false },
-    { filter: Filters.bySource('.A.hidePersonalInformation)', '.default.getUser(', 'mode:"username",'), searchDefault: false }
+    { filter: Filters.bySource("ChannelEditor.tsx") }
 );
-
-const { useStateFromStores } = BdApi.Hooks;
 
 module.exports = class BetterMentions {
     constructor(meta) {
@@ -83,16 +81,34 @@ module.exports = class BetterMentions {
     }
 
     patchTextEditor() {
-        Patcher.after("BetterMentions", TextEditorMention, "M9", (_, [{ id, channelId }], res) => {
-            const user = useStateFromStores([UserStore], () => UserStore.getUser(id));
-            if (!user) return res;
+        const probe = TextEditorMention.A.prototype.render.call({
+            props: {
+                type: {},
+                textValue: "",
+                useSlate: true,
+                channel: {}
+            },
+            state: {
+                popup: {}
+            },
+            getPlaceholder: () => {}
+        });
 
-            return React.createElement(MentionComponent.A, { 
-                className: 'mention',
-                userId: id,
-                parsedUserId: id,
-                channelId: channelId,
-                viewingChannelId: channelId // big up arven for this you a real g
+        const renderElementProto = BdApi.ReactUtils.wrapInHooks(probe.props.children[2].type)(probe.props.children[2].props).props.children[1].props.children.type.prototype;
+
+        this.nodePatcher = BdApi.ReactUtils.createNodePatcher();
+
+        Patcher.after("BetterMentions", renderElementProto, "renderElement", (that, [ele], res) => {
+            if (ele?.element?.type !== "userMention") return;
+
+            this.nodePatcher.patch(res.props.children[0], (_props, ret) => {
+                ret.props.children.props.children = React.createElement(MentionComponent.A, {
+                    className: 'mention',
+                    userId: _props.id,
+                    parsedUserId: _props.id,
+                    channelId: _props.channelId,
+                    viewingChannelId: _props.channelId
+                });
             });
         });
     }
