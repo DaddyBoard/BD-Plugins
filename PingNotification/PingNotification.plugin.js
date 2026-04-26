@@ -24,7 +24,6 @@ const [
     Message,
     messageReferenceSelectors,
     PopoutModule,
-    RecentMentionsInbox,
     trailingModule,
     DiscordProgressBar,
     constructMessageObj,
@@ -39,10 +38,9 @@ const [
     { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
     { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
     { filter: Webpack.Filters.byKeys("hasThread") }, // hasThreadElementModule
-    { filter: m => String(m.type).includes('Nt,"aria-setsize":-1') }, // Message
+    { filter: m => m?.type && String(m.type).includes("aria-setsize") }, // Message
     { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
     { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
-    { filter: Webpack.Filters.byStrings(".clearMentions(),", ".deleteRecentMention"), searchExports: true }, // RecentMentionsInbox
     { filter: Webpack.Filters.byKeys('bar', 'trailing') }, // trailingModule
     { filter: Webpack.Filters.byStrings("percent", "foregroundGradientColor"), searchExports: true }, // DiscordProgressBar
     { filter: Webpack.Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), searchExports: true }, // constructMessageObj
@@ -76,6 +74,29 @@ const hasThreadElement = hasThreadElementModule.hasThread;
 const trailing = trailingModule.trailing;
 const UserFetchModule = Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Webpack.Filters.byStrings("USER_UPDATE", "Promise.resolve") })
 const windowArea = BdApi.Webpack.getById("71855");
+
+const getMessageComponent = (() => {
+    let cached = null;
+    return () => {
+        if (cached) return cached;
+        try {
+            const msgEl = document.querySelector('[class*="message_"]');
+            if (!msgEl) return null;
+            let fiber = BdApi.ReactUtils.getInternalInstance(msgEl);
+            while (fiber) {
+                if (fiber.type && typeof fiber.type === "function") {
+                    const p = fiber.memoizedProps || {};
+                    if (p.message && p.channel && p.groupId !== undefined) {
+                        cached = fiber.type;
+                        return cached;
+                    }
+                }
+                fiber = fiber.return;
+            }
+        } catch(e) {}
+        return null;
+    };
+})();
 
 const MemberAreaAvatarFilter = BdApi.Webpack.Filters.byStrings("statusColor", "isTyping");
 const MemberAreaAvatar = BdApi.Webpack.getModule(x => MemberAreaAvatarFilter(x?.type), { searchExports: true });
@@ -2385,7 +2406,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
                     pointerEvents: settings.disableMediaInteraction ? 'none' : 'auto'
                 },
             }, 
-                React.createElement(Message, {
+                React.createElement(getMessageComponent() || Message, {
                     id: `${message.id}-${message.id}`,
                     groupId: message.id,
                     channel: channel,
@@ -2604,34 +2625,52 @@ function addMessage(message) {
     ChannelConstructor.commit(newChannel);
 }
 
-let renderMessage;
-
 function RenderMessage({message, item, onClickCallback, shiftHeld}) {
-    if (typeof renderMessage === "undefined") {
-        try {
-            renderMessage = RecentMentionsInbox({}).props.renderMessage;
-        } catch(e) {
-            return null;
-        }
-    }
-
     const isThreadDummy = item?.id?.startsWith('PingNotification-Thread-');
     const jumpChannelId = item?.fullMessage?.message_reference?.channel_id ?? message.channel_id;
     const jumpMessageId = isThreadDummy ? null : (item?.fullMessage?.message_reference?.message_id ?? message.id);
 
-    const [node] = renderMessage(message, () => {
-        const channel = ChannelStore.getChannel(jumpChannelId);
-        transitionTo(channel.guild_id, channel.id, jumpMessageId);
-        if (onClickCallback) onClickCallback();
-    });
+    if (!message) return null;
 
-    const messageContainer = node.type(node.props)?.props?.children?.[1];
-    
-    if (message.state === "SEND_FAILED" && !shiftHeld) {
-        return React.cloneElement(messageContainer, {}, messageContainer.props.children[1]);
+    const handleClick = () => {
+        const jumpChannel = ChannelStore.getChannel(jumpChannelId);
+        if (jumpChannel) transitionTo(jumpChannel.guild_id, jumpChannel.id, jumpMessageId);
+        if (onClickCallback) onClickCallback();
+    };
+
+    const MessageComponent = getMessageComponent();
+    const channel = ChannelStore.getChannel(message.channel_id);
+
+    if (MessageComponent && channel) {
+        return React.createElement('div', { onClick: handleClick, style: { cursor: 'pointer' } },
+            React.createElement(MessageComponent, {
+                id: `${message.id}-${message.id}`,
+                groupId: message.id,
+                channel: channel,
+                message: message,
+                compact: false,
+                renderContentOnly: false
+            })
+        );
     }
 
-    return messageContainer;
+    const isFailed = message.state === "SEND_FAILED" && !shiftHeld;
+    const authorName = message.author?.globalName || message.author?.username || "Unknown";
+    const content = message.content || (isFailed ? "[Message Deleted]" : "");
+
+    return React.createElement('div', {
+        onClick: handleClick,
+        style: { cursor: 'pointer', opacity: isFailed ? 0.5 : 1, padding: '2px 8px' }
+    }, [
+        React.createElement('span', {
+            key: 'author',
+            style: { fontWeight: '600', fontSize: '14px', color: 'var(--header-primary)', marginRight: '6px' }
+        }, authorName),
+        React.createElement('span', {
+            key: 'content',
+            style: { fontSize: '14px', color: 'var(--text-normal)', wordBreak: 'break-word' }
+        }, content)
+    ]);
 }
 
 function createPopout(pluginInstance) {
