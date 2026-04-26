@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.4.0
+ * @version 9.4.1
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -13,7 +13,7 @@ const { createRoot } = ReactDOM;
 const { Patcher } = BdApi;
 const { Filters } = Webpack;
 
-const [
+let [
     NotificationUtils,
     NotificationSoundModule,
     MessageConstructor,
@@ -21,10 +21,8 @@ const [
     Dispatcher,
     MessageActions,
     hasThreadElementModule,
-    Message,
     messageReferenceSelectors,
     PopoutModule,
-    RecentMentionsInbox,
     trailingModule,
     DiscordProgressBar,
     constructMessageObj,
@@ -39,10 +37,8 @@ const [
     { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
     { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
     { filter: Webpack.Filters.byKeys("hasThread") }, // hasThreadElementModule
-    { filter: m => String(m.type).includes('Nt,"aria-setsize":-1') }, // Message
     { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
     { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
-    { filter: Webpack.Filters.byStrings(".clearMentions(),", ".deleteRecentMention") }, // RecentMentionsInbox
     { filter: Webpack.Filters.byKeys('bar', 'trailing') }, // trailingModule
     { filter: Webpack.Filters.byStrings("percent", "foregroundGradientColor"), searchExports: true }, // DiscordProgressBar
     { filter: Webpack.Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), searchExports: true }, // constructMessageObj
@@ -50,6 +46,82 @@ const [
     { filter: Webpack.Filters.byStrings("getStateFromStores"), searchExports: true }, // useStateFromStores
     { filter: Webpack.Filters.byKeys("appAsidePanelWrapper", "app") } // appSidePanelSelectors
 );
+
+BdApi.Utils.forceLoad(BdApi.Webpack.getBySource("RecentsPopoutRenderer", { raw: true, searchDefault: false }).id)
+
+function getMessageType() {
+    let Message = BdApi.Webpack.getBySource("Message must not be a thread starter message");
+    if (!Message) return null;
+    Message = Message.A;
+    if (String(Message.type).includes("Message must not be a thread starter message")) return Message;
+
+    const node = BdApi.ReactUtils.wrapInHooks(Message)({
+        channel: {
+            type: 0,
+            hasFlag: () => true,
+            isNSFW: () => false,
+            getGuildId: () => 1,
+            isPrivate: () => false,
+            isObfuscated: () => false,
+            isDM: () => false,
+            isSystemDM: () => false,
+            rawRecipients: [],
+            getRecipientId: () => 0,
+            isForumPost: () => false,
+            isModeratorReportChannel: () => false,
+            isMultiUserDM: () => false,
+            isManaged: () => false,
+            id: 1
+        }
+    }).props.children.props.children;
+
+    BdApi.ReactUtils.wrapInHooks(node.type)({
+        ...node.props,
+        channelStream: {
+            map: v => {
+                Message = v({ content: { timestamp: new Date() }, type: "MESSAGE", groupId: false }).type;
+                return [];
+            }
+        }
+    });
+
+    return Message;
+}
+
+const Message = (() => {
+    try { return getMessageType(); }
+    catch (e) { console.error("[PingNotification] getMessageType failed:", e); return null; }
+})();
+
+if (!Message) {
+    UI.showNotice("PingNotification ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
+}
+
+function resolveRenderMessage(InboxTabs) {
+    const tabNode = BdApi.ReactUtils.wrapInHooks(InboxTabs)({ tab: 1 })
+        .props.children.props.children.props.children;
+    return BdApi.ReactUtils.wrapInHooks(tabNode.type)({}).props.renderMessage;
+}
+
+let renderMessage = null;
+{
+    const inboxFilter = Webpack.Filters.byStrings(".BOOKMARKS?(", ".MENTIONS?(");
+    const tryResolve = (mod) => {
+        try { renderMessage = resolveRenderMessage(mod); }
+        catch (e) { console.error("[PingNotification] resolveRenderMessage failed:", e); }
+    };
+    const existing = BdApi.Webpack.getModule(inboxFilter, { searchExports: true });
+    if (existing) {
+        tryResolve(existing);
+    } else {
+        Webpack.waitForModule(inboxFilter, { searchExports: true }).then(mod => {
+            if (mod) tryResolve(mod);
+            if (!renderMessage) {
+                UI.showNotice("PingNotification ERROR: Could not resolve the renderMessage function. Please report this on the Github page!", { type: 'error' });
+            }
+        });
+    }
+}
 
 const {
     IdleStore,
@@ -105,14 +177,13 @@ function updateDOMReferences() {
 }
 
 let liveMessages = [];
-
 const config = {
     changelog: [
         {
-            "title": "9.4.0",
+            "title": "9.4.1",
             "type": "added",
             "items": [
-                "Swapped out the custom avatar element for discords member-list avatar (So you will now see the users status on the avatar)."
+                "Fixes from the atrocious discord update."
             ]
         }
     ],
@@ -2604,12 +2675,8 @@ function addMessage(message) {
     ChannelConstructor.commit(newChannel);
 }
 
-let renderMessage;
-
 function RenderMessage({message, item, onClickCallback, shiftHeld}) {
-    if (typeof renderMessage === "undefined") {
-        renderMessage = RecentMentionsInbox({}).props.renderMessage;
-    }
+    if (!renderMessage) return null;
 
     const isThreadDummy = item?.id?.startsWith('PingNotification-Thread-');
     const jumpChannelId = item?.fullMessage?.message_reference?.channel_id ?? message.channel_id;
