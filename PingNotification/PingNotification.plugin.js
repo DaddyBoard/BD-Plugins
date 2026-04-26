@@ -42,7 +42,7 @@ const [
     { filter: m => String(m.type).includes('Nt,"aria-setsize":-1') }, // Message
     { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
     { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
-    { filter: Webpack.Filters.byStrings(".clearMentions(),", ".deleteRecentMention") }, // RecentMentionsInbox
+    { filter: Webpack.Filters.byStrings(".clearMentions(),", ".deleteRecentMention"), searchExports: true }, // RecentMentionsInbox
     { filter: Webpack.Filters.byKeys('bar', 'trailing') }, // trailingModule
     { filter: Webpack.Filters.byStrings("percent", "foregroundGradientColor"), searchExports: true }, // DiscordProgressBar
     { filter: Webpack.Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), searchExports: true }, // constructMessageObj
@@ -2608,7 +2608,11 @@ let renderMessage;
 
 function RenderMessage({message, item, onClickCallback, shiftHeld}) {
     if (typeof renderMessage === "undefined") {
-        renderMessage = RecentMentionsInbox({}).props.renderMessage;
+        try {
+            renderMessage = RecentMentionsInbox({}).props.renderMessage;
+        } catch(e) {
+            return null;
+        }
     }
 
     const isThreadDummy = item?.id?.startsWith('PingNotification-Thread-');
