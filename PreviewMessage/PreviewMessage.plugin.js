@@ -13,7 +13,7 @@ const { Webpack, React, Patcher, Plugins } = BdApi;
 const DraftStore = Webpack.getModule((m) => m.getDraft);
 const MessageActions = Webpack.getModule((m) => m.sendBotMessage);
 const ChatButtonsGroup = Webpack.getBySource("showAllButtons", "promotionsByType")?.A;
-const ChatButton = Webpack.getBySource("CHAT_INPUT_BUTTON_NOTIFICATION")?.A;
+const ChatButton = Webpack.getBySource("CHAT_INPUT_BUTTON_NOTIFICATION", "animated.div")?.A;
 const Tooltip = BdApi.Components.Tooltip;
 
 function PreviewButton({ channel }) {

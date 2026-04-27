@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.11
+* @version 2.0.13
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -27,12 +27,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.11 - Fixed",
+            "title": "2.0.13 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixed account area coloring not working, ty @zacam",
-                "Fixed profile popout not coloring when invoked via chat avatar/username, ty @zacam",
-                "Compatibility fix for `ShowConnections` plugin, ty @zacam"
+                "Fixed breaking-discord update. Mentions in Text Editor work now"
             ]
         }
     ],
@@ -716,36 +714,58 @@ module.exports = class MoreRoleColors {
     }
 
     patchTextEditor() {
-        const [ module, key ] = BdApi.Webpack.getWithKey(BdApi.Webpack.Filters.byStrings(".hidePersonalInformation", "#", "<@", ".discriminator"));
-        const pluginInstance = this;
-        BdApi.Patcher.after("MoreRoleColors-textEditor", module, key, (that, [{ id, guildId }], res) => {
-            const member = GuildMemberStore.getMember(guildId, id);
-            if (!member?.colorString) return res;
+        const TextEditorMention = getBySource("ChannelEditor.tsx");
+        if (!TextEditorMention?.A?.prototype?.render) return;
 
-            const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
-            const color = parseInt(member.colorString.slice(1), 16);
-            const innerMention = res.props.children?.props?.children;
-            
-            if (!innerMention?.props) return res;
-            
-            return BdApi.React.cloneElement(res, {
-                children: BdApi.React.cloneElement(res.props.children, {
-                    children: BdApi.React.cloneElement(innerMention, {
-                        ...innerMention.props,
-                        color,
-                        ...(pluginInstance.settings.textEditorGradient && 
-                            GuildStore.getGuild(guildId)?.features?.has?.("ENHANCED_ROLE_COLORS") &&
-                            colorObject.colorStrings?.primaryColor && colorObject.colorStrings?.secondaryColor && {
-                                roleColors: {
-                                    primaryColor: colorObject.colorStrings.primaryColor,
-                                    secondaryColor: colorObject.colorStrings.secondaryColor,
-                                    tertiaryColor: colorObject.colorStrings.tertiaryColor || null
-                                }
-                            })
-                    })
-                })
+        const probe = TextEditorMention.A.prototype.render.call({
+            props: {
+                type: {},
+                textValue: "",
+                useSlate: true,
+                channel: {}
+            },
+            state: {
+                popup: {}
+            },
+            getPlaceholder: () => {}
+        });
+
+        const renderElementProto = ReactUtils.wrapInHooks(probe.props.children[2].type)(probe.props.children[2].props).props.children[1].props.children.type.prototype;
+
+        this.textEditorNodePatcher = ReactUtils.createNodePatcher();
+        const pluginInstance = this;
+
+        Patcher.after("MoreRoleColors-textEditor", renderElementProto, "renderElement", (_, [ele], res) => {
+            if (ele?.element?.type !== "userMention") return;
+
+            pluginInstance.textEditorNodePatcher.patch(res.props.children[0], (_props, ret) => {
+                const { id, guildId } = _props;
+                if (!id || !guildId) return;
+
+                const member = GuildMemberStore.getMember(guildId, id);
+                if (!member?.colorString) return;
+
+                const inner = ret.props.children?.props?.children;
+                if (!inner?.props) return;
+
+                const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
+                const color = parseInt(member.colorString.slice(1), 16);
+
+                ret.props.children.props.children = React.cloneElement(inner, {
+                    ...inner.props,
+                    color,
+                    ...(pluginInstance.settings.textEditorGradient &&
+                        GuildStore.getGuild(guildId)?.features?.has?.("ENHANCED_ROLE_COLORS") &&
+                        colorObject.colorStrings?.primaryColor && colorObject.colorStrings?.secondaryColor && {
+                            roleColors: {
+                                primaryColor: colorObject.colorStrings.primaryColor,
+                                secondaryColor: colorObject.colorStrings.secondaryColor,
+                                tertiaryColor: colorObject.colorStrings.tertiaryColor || null
+                            }
+                        })
+                });
             });
-        }); 
+        });
     }
 
     patchAuditLog() {
@@ -869,56 +889,57 @@ module.exports = class MoreRoleColors {
     }
 
     patchUserProfile() {
-        const UserProfileModule = BdApi.Webpack.getByStrings("displayProfile", "hasAvatarForGuild", { defaultExport: false });
-        const cache = new WeakMap();
-        const pluginInstance = this;
+        BdApi.Webpack.waitForModule(BdApi.Webpack.Filters.byStrings("displayProfile", "hasAvatarForGuild"), { defaultExport: false }).then((UserProfileModule) => {
+            const cache = new WeakMap();
+            const pluginInstance = this;
 
-        const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
+            const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
 
-        BdApi.Patcher.after("MoreRoleColors-userProfile", UserProfileModule, "A", (_, [props], res) => {
-            const profileComponent = res.props.children[1];
+            BdApi.Patcher.after("MoreRoleColors-userProfile", UserProfileModule, "A", (_, [props], res) => {
+                const profileComponent = res.props.children[1];
 
-            let newType = cache.get(profileComponent.type);
-            if (!newType) {            
-                newType = new Proxy(profileComponent.type, {
-                    apply: (target, thisArg, args) => {
-                        const res = Reflect.apply(target, thisArg, args);
+                let newType = cache.get(profileComponent.type);
+                if (!newType) {
+                    newType = new Proxy(profileComponent.type, {
+                        apply: (target, thisArg, args) => {
+                            const res = Reflect.apply(target, thisArg, args);
 
-                        const displayProfile = args[0].tags.props.displayProfile;
-                        const guildId = displayProfile?.guildId ?? args[0].guildId;
+                            const displayProfile = args[0].tags.props.displayProfile;
+                            const guildId = displayProfile?.guildId ?? args[0].guildId;
 
-                        const member = GuildMemberStore.getMember(guildId, displayProfile?.userId);
+                            const member = GuildMemberStore.getMember(guildId, displayProfile?.userId);
 
-                        const userObject = BdApi.Utils.findInTree(res,x=>x?.className?.includes('nickname'), {walkable: ['props','children']})
-                        if (!userObject) return res;
-                        
-                        if (member?.colorString) {
-                            const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
-                            const tempElement = { style: {} };
-                            pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.userProfileGradient);
-                            
-                            if (!userObject?.style) {
-                                Object.defineProperty(userObject, "style", {
-                                    value: tempElement.style,
-                                    writable: true,
-                                    enumerable: true,
-                                    configurable: true
-                                });
-                            } else {
-                                Object.assign(userObject.style, tempElement.style);
+                            const userObject = BdApi.Utils.findInTree(res,x=>x?.className?.includes('nickname'), {walkable: ['props','children']})
+                            if (!userObject) return res;
+
+                            if (member?.colorString) {
+                                const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
+                                const tempElement = { style: {} };
+                                pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.userProfileGradient);
+
+                                if (!userObject?.style) {
+                                    Object.defineProperty(userObject, "style", {
+                                        value: tempElement.style,
+                                        writable: true,
+                                        enumerable: true,
+                                        configurable: true
+                                    });
+                                } else {
+                                    Object.assign(userObject.style, tempElement.style);
+                                }
                             }
+
+                            return res;
                         }
+                    });
 
-                        return res;
-                    }
-                });
+                    cache.set(profileComponent.type, newType);
+                    cache.set(newType, newType);
+                }
 
-                cache.set(profileComponent.type, newType);
-                cache.set(newType, newType);
-            }
-
-            profileComponent.type = newType;
-            return res;
+                profileComponent.type = newType;
+                return res;
+            });
         });
     }
 

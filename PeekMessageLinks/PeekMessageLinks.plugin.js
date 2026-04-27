@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.6
+* @version 1.2.7
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -11,7 +11,53 @@ const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM} = BdApi;
 const { createRoot } = ReactDOM;
 const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
 const MessageStore = Webpack.getStore("MessageStore");
-const Message = Webpack.getModule(m => String(m.type).includes('Nt,"aria-setsize":-1'));
+function getMessageType() {
+    let Message = BdApi.Webpack.getBySource("Message must not be a thread starter message");
+    if (!Message) return null;
+    Message = Message.A;
+    if (String(Message.type).includes("Message must not be a thread starter message")) return Message;
+
+    const node = BdApi.ReactUtils.wrapInHooks(Message)({
+        channel: {
+            type: 0,
+            hasFlag: () => true,
+            isNSFW: () => false,
+            getGuildId: () => 1,
+            isPrivate: () => false,
+            isObfuscated: () => false,
+            isDM: () => false,
+            isSystemDM: () => false,
+            rawRecipients: [],
+            getRecipientId: () => 0,
+            isForumPost: () => false,
+            isModeratorReportChannel: () => false,
+            isMultiUserDM: () => false,
+            isManaged: () => false,
+            id: 1
+        }
+    }).props.children.props.children;
+
+    BdApi.ReactUtils.wrapInHooks(node.type)({
+        ...node.props,
+        channelStream: {
+            map: v => {
+                Message = v({ content: { timestamp: new Date() }, type: "MESSAGE", groupId: false }).type;
+                return [];
+            }
+        }
+    });
+
+    return Message;
+}
+
+const Message = (() => {
+    try { return getMessageType(); }
+    catch (e) { console.error("[PeekMessageLinks] getMessageType failed:", e); return null; }
+})();
+
+if (!Message) {
+    BdApi.UI.showNotice("PeekMessageLinks ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
+}
 const ChannelStore = Webpack.getStore("ChannelStore");
 const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
 const UserStore = Webpack.getStore("UserStore");
