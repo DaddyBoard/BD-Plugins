@@ -2,13 +2,13 @@
 * @name PreviewMessage
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.1.1
+* @version 1.2.0
 * @description Allows you to preview a message before you send it. Original idea by TheCommieAxolotl, rewritten and maintained by DaddyBoard.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
 
-const { Webpack, React, Patcher } = BdApi;
+const { Webpack, React, Patcher, Plugins } = BdApi;
 
 const DraftStore = Webpack.getModule((m) => m.getDraft);
 const MessageActions = Webpack.getModule((m) => m.sendBotMessage);
@@ -27,7 +27,28 @@ function PreviewButton({ channel }) {
                 style: { padding: "5px" },
                 onClick: () => {
                     const draft = DraftStore.getDraft(channel.id, 0);
-                    if (draft) MessageActions.sendBotMessage(channel.id, draft);
+                    if (draft) {
+                        if (Plugins.isEnabled("SplitLargeMessages")){
+                            const messageSplitter = Plugins.get("SplitLargeMessages").instance;
+
+                            var splitMessages = [""];
+                            try{
+                                if (messageSplitter?.formatText){
+                                    splitMessages = messageSplitter.formatText(draft)
+                                }
+                            } catch (e){
+                                MessageActions.sendBotMessage(channel.id, "Warning: SplitLargeMessages threw an error and likely won't split your messages or the developer changed how splitting is implemented.")
+                            }
+
+                            for (const message of splitMessages){
+                                MessageActions.sendBotMessage(channel.id, format(message, channel.id));
+                            }
+                        }else{
+
+                            MessageActions.sendBotMessage(channel.id, format(draft, channel.id));
+
+                        }
+                    }
                 }
             },
             React.createElement(ChatButton, null,
@@ -59,6 +80,49 @@ function PreviewButton({ channel }) {
             )
         )
     );
+}
+
+function format(originalText, cID){
+    var text = originalText;
+
+    if (Plugins.isEnabled("ChatAliases")){
+        
+        const chatAliases = Plugins.get("ChatAliases").instance;
+        try{
+            if (chatAliases?.formatText && chatAliases.settings.places.normal){
+                text = chatAliases.formatText(text).text;
+            }
+        } catch (e){
+            MessageActions.sendBotMessage(cID, "Warning: ChatAliases threw an error and likely won't format your text or the developer changed how the plugin changes text.");
+        }
+    }
+
+    if (Plugins.isEnabled("BetterFormattingRedux")){
+        
+        const betterFormatting = Plugins.get("BetterFormattingRedux").instance;
+        try{
+            if (betterFormatting?.format){
+                text = betterFormatting.format(text);
+            }
+        } catch (e){
+            MessageActions.sendBotMessage(cID, "Warning: BetterFormattingRedux threw an error and likely won't format your text or the developter changed how the plugin changes text.");
+        }
+    }
+
+    if (Plugins.isEnabled("Vriska'sTypingQuirk")){
+
+        const vriska = Plugins.get("Vriska'sTypingQuirk").instance;
+        try{
+            if (vriska?.processText){
+                text = vriska.processText(text);
+            }
+        } catch (e){
+            MessageActions.sendBotMessage(cID, "Warning: Vriska'sTypingQuirk threw an error and likely won't format your text or the developter changed how the plugin changes text.");
+        }
+    }
+
+
+    return text;
 }
 
 module.exports = class PreviewMessage {
