@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.13
+* @version 2.0.14
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -14,7 +14,6 @@ const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
 const TypingStore = getStore("TypingStore");
-const TypingModule = getBySource('activityInviteEducationActivity')
 const [MentionModule, key] = getWithKey(Filters.byStrings('USER_MENTION',"getNickname", "inlinePreview"));
 const ChannelStore = getStore("ChannelStore");
 const UserStore = getStore("UserStore");
@@ -27,10 +26,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.13 - Fixed",
+            "title": "2.0.14 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixed breaking-discord update. Mentions in Text Editor work now"
+                "Fixed breaking-discord update. AGAIN!"
             ]
         }
     ],
@@ -520,6 +519,7 @@ module.exports = class MoreRoleColors {
         const cache = new WeakMap();
         const pluginInstance = this;
 
+        Webpack.waitForModule(Filters.bySource('activityInviteEducationActivity')).then((TypingModule) => {
         Patcher.after("MoreRoleColors-typingUsers", TypingModule, "Ay", (that, args, res) => {
             let newType = cache.get(res.type);
 
@@ -579,6 +579,7 @@ module.exports = class MoreRoleColors {
             }
 
             res.type = newType;
+        });
         });
     }
 
@@ -1045,37 +1046,38 @@ module.exports = class MoreRoleColors {
 
     patchServerProfileDisplayName() {
         BdApi.UI.showToast("server profile disabled. will fix later.");
-    //     const ServerProfileGuildSelector = BdApi.Webpack.getBySource(".getFlattenedGuildIds", ".getGuilds", "A", "Sizes.SMOL", { defaultExport: false });
-    //     console.log("MRC", ServerProfileGuildSelector);
-    //     let currentProfileGuildId = null;
-    //     const pluginInstance = this;
+        // const ServerProfileGuildSelector = BdApi.Webpack.getById("687021")
+        // console
+        // let currentProfileGuildId = null;
+        // const pluginInstance = this;
 
-    //     Patcher.after("MoreRoleColors-ServerProfileGuildSelector", ServerProfileGuildSelector, "A", (_, [props], res) => {
-    //         console.log("selector",res)
-    //         currentProfileGuildId = res.props.children.props.guildId;
-    //         return res;
-    //     });
+        // Patcher.after("MoreRoleColors-ServerProfileGuildSelector", ServerProfileGuildSelector, "A", (_, [props], res) => {
+        //     console.log("selector",res)
+        //     currentProfileGuildId = res.props.children.props.guildId;
+        //     console.log("currentProfileGuildId",currentProfileGuildId);
+        //     return res;
+        // });
 
-    //     BdApi.Webpack.waitForModule((e, m) => 
-    //         BdApi.Webpack.modules[m.id]?.toString?.()?.includes(".isVerifiedBot", "forceUsername:!0")
-    //     ).then(ServerProfileDisplayNameModule => {
-    //         console.log("MRC2", ServerProfileDisplayNameModule);
-    //         Patcher.after("MoreRoleColors-ServerProfileDisplayName", ServerProfileDisplayNameModule.A, "type", (_, [props], res) => {          
-    //             console.log("displayname",res);
-    //             const target = res.props.children[0].props.children[0].props;
-    //             const currentUser = UserStore.getCurrentUser();
-    //             const member = GuildMemberStore.getMember(currentProfileGuildId, currentUser.id);
+        // BdApi.Webpack.waitForModule((e, m) => 
+        //     BdApi.Webpack.getBySource(".isVerifiedBot", "pendingDisplayNameStyles")
+        // ).then(ServerProfileDisplayNameModule => {
+        //     console.log("MRC2", ServerProfileDisplayNameModule);
+        //     Patcher.after("MoreRoleColors-ServerProfileDisplayName", ServerProfileDisplayNameModule.A, "type", (_, [props], res) => {          
+        //         console.log("displayname",res);
+        //         const target = res.props.children[0].props.children[0].props;
+        //         const currentUser = UserStore.getCurrentUser();
+        //         const member = GuildMemberStore.getMember(currentProfileGuildId, currentUser.id);
                 
-    //             if (member?.colorString) {
-    //                 const colorObject = pluginInstance.getColorObjectForMember(currentProfileGuildId, member);
-    //                 const tempElement = { style: {} };
-    //                 pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.serverProfileDisplayNameGradient);
-    //                 target.style = tempElement.style;
-    //             }
+        //         if (member?.colorString) {
+        //             const colorObject = pluginInstance.getColorObjectForMember(currentProfileGuildId, member);
+        //             const tempElement = { style: {} };
+        //             pluginInstance.applyRoleStyle(tempElement, colorObject, pluginInstance.settings.serverProfileDisplayNameGradient);
+        //             target.style = tempElement.style;
+        //         }
                 
-    //             return res;
-    //         });
+        //         return res;
+        //     });
 
-    //     });
+        // });
     }
 }
