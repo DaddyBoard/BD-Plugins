@@ -13,7 +13,6 @@ const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
 const TypingStore = getStore("TypingStore");
-const [MentionModule, key] = getWithKey(Filters.byStrings('USER_MENTION',"getNickname", "inlinePreview"));
 const ChannelStore = getStore("ChannelStore");
 const UserStore = getStore("UserStore");
 const GuildStore = getStore("GuildStore");
@@ -28,7 +27,7 @@ const config = {
             "title": "2.0.15 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixes voice user coloring."
+                "Fixes voice user coloring. And handles lazy loaded modules"
             ]
         }
     ],
@@ -587,6 +586,8 @@ module.exports = class MoreRoleColors {
     }
 
     patchMentions() {
+        Webpack.waitForModule(Filters.byStrings('USER_MENTION',"getNickname", "inlinePreview")).then(() => {
+        const [MentionModule, key] = getWithKey(Filters.byStrings('USER_MENTION',"getNickname", "inlinePreview"));
         Patcher.after("MoreRoleColors-mentions", MentionModule, key, (_, [props], res) => {
             if (!props?.userId || !res?.props?.children?.props) return res;
 
@@ -644,6 +645,7 @@ module.exports = class MoreRoleColors {
             };
 
             return res;
+        });
         });
     }
 
@@ -718,7 +720,8 @@ module.exports = class MoreRoleColors {
     }
 
     patchTextEditor() {
-        const TextEditorMention = getBySource("ChannelEditor.tsx");
+        const pluginInstance = this;
+        Webpack.waitForModule(Filters.bySource("ChannelEditor.tsx")).then((TextEditorMention) => {
         if (!TextEditorMention?.A?.prototype?.render) return;
 
         const probe = TextEditorMention.A.prototype.render.call({
@@ -737,7 +740,6 @@ module.exports = class MoreRoleColors {
         const renderElementProto = ReactUtils.wrapInHooks(probe.props.children[2].type)(probe.props.children[2].props).props.children[1].props.children.type.prototype;
 
         this.textEditorNodePatcher = ReactUtils.createNodePatcher();
-        const pluginInstance = this;
 
         Patcher.after("MoreRoleColors-textEditor", renderElementProto, "renderElement", (_, [ele], res) => {
             if (ele?.element?.type !== "userMention") return;
@@ -770,6 +772,7 @@ module.exports = class MoreRoleColors {
                 });
             });
         });
+        });
     }
 
     patchAuditLog() {
@@ -791,13 +794,13 @@ module.exports = class MoreRoleColors {
             });
         }
 
-        function attemptPatchAuditLogUser() {
+        function attemptPatchAuditLogUser(FluxContainerModule) {
             if (AuditLogUser) {
                 patchAuditLogUser();
                 return;
             }
             
-            const undo = BdApi.Patcher.after("MoreRoleColors-auditLog-temp", BdApi.Webpack.getModule(m => m.displayName === "ForwardRef(FluxContainer(GuildSettingsAuditLogEntry))"), "render", (that, [props], res) => { 
+            const undo = BdApi.Patcher.after("MoreRoleColors-auditLog-temp", FluxContainerModule, "render", (that, [props], res) => { 
                 undo();
                 
                 const a = res?.type?.prototype?.render?.call({
@@ -834,13 +837,13 @@ module.exports = class MoreRoleColors {
             });
         }
 
-        BdApi.Webpack.waitForModule(m => m.displayName === "ForwardRef(FluxContainer(GuildSettingsAuditLogEntry))").then(() => {
-            attemptPatchAuditLogUser();
+        BdApi.Webpack.waitForModule(m => m.displayName === "ForwardRef(FluxContainer(GuildSettingsAuditLogEntry))").then((FluxContainerModule) => {
+            attemptPatchAuditLogUser(FluxContainerModule);
         });
     }
 
     patchRoleHeaders() {
-        const roleHeaderModule = BdApi.Webpack.getBySource(/,.{1,3}.kL,.{1,3}.wx\)/)
+        BdApi.Webpack.waitForModule(BdApi.Webpack.Filters.bySource(/,.{1,3}.kL,.{1,3}.wx\)/)).then((roleHeaderModule) => {
         BdApi.Patcher.after("MoreRoleColors-roleHeaders", roleHeaderModule, "A", (_, [props], res) => {
             let roleNameArea = Utils.findInTree(res, (m) => m?.className?.includes('membersGroupName'))
             if (roleNameArea) {
@@ -859,14 +862,15 @@ module.exports = class MoreRoleColors {
                     }
                 }
             }
-        }); 
+        });
+        });
     }
 
     patchMessages() {
-        const MessageContentMRC = BdApi.Webpack.getModule((m) => 
+        BdApi.Webpack.waitForModule((m) => 
             m?.type?.toString?.()?.includes("BK") && 
             m?.type?.toString?.()?.includes("w3")
-        );
+        ).then((MessageContentMRC) => {
         BdApi.Patcher.after("MoreRoleColors-messages", MessageContentMRC, "type", (_, [props], res) => {
             if (!props?.message?.author?.id) return res;
             
@@ -890,6 +894,7 @@ module.exports = class MoreRoleColors {
 
             return res;
         });
+        });
     }
 
     patchUserProfile() {
@@ -899,7 +904,7 @@ module.exports = class MoreRoleColors {
 
             const GuildMemberStore = BdApi.Webpack.getStore("GuildMemberStore");
 
-            BdApi.Patcher.after("MoreRoleColors-userProfile", UserProfileModule, "A", (_, [props], res) => {
+            BdApi.Patcher.after("MoreRoleColors-userProfile", UserProfileModule, "default", (_, [props], res) => {
                 const profileComponent = res.props.children[1];
 
                 let newType = cache.get(profileComponent.type);
@@ -948,8 +953,6 @@ module.exports = class MoreRoleColors {
     }
 
     patchTags() {
-        const TagModule = BdApi.Webpack.getByStrings(".BOT", ".ORIGINAL_POSTER", { defaultExport: false });
-
         function hexToRgb(hex) {
             hex = hex.replace(/^#/, "");
             if (hex.length === 3) {
@@ -1038,8 +1041,10 @@ module.exports = class MoreRoleColors {
             }
         }
 
+        BdApi.Webpack.waitForModule(BdApi.Webpack.Filters.byStrings(".BOT", ".ORIGINAL_POSTER"), { defaultExport: false }).then((TagModule) => {
         Patcher.after("MoreRoleColors-Tags", TagModule, "A", (_, args, res) => {
             return BdApi.React.createElement(TagWrapper, { tag: res });
+        });
         });
 
         this._unpatchTags = () => {
