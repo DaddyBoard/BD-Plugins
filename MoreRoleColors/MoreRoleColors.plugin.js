@@ -1,7 +1,7 @@
 /**
 * @name MoreRoleColors
 * @author DaddyBoard
-* @version 2.0.14
+* @version 2.0.15
 * @description Adds role colors to usernames across Discord - including messages, voice channels, typing indicators, mentions, account area, text editor, audit log, role headers, user profiles, and tags
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -9,7 +9,6 @@
 
 const { Webpack, React, Patcher, ReactUtils, Utils } = BdApi;
 const { getStore, getByStrings, getBySource, getWithKey, Filters, getModule } = Webpack;
-const VoiceUser = getBySource("g4", "H", "getAvatarURL");
 const GuildMemberStore = getStore("GuildMemberStore");
 const SelectedGuildStore = getStore("SelectedGuildStore");
 const RelationshipStore = getStore("RelationshipStore");
@@ -26,10 +25,10 @@ const config = {
     banner: "",
     changelog: [
         {
-            "title": "2.0.14 - Fixed",
+            "title": "2.0.15 - Fixed",
             "type": "fixed",
             "items": [
-                "Fixed breaking-discord update. AGAIN!"
+                "Fixes voice user coloring."
             ]
         }
     ],
@@ -491,6 +490,9 @@ module.exports = class MoreRoleColors {
     }
     
     patchVoiceUsers() {
+        const pluginInstance = this;
+
+        Webpack.waitForModule(Filters.bySource("avatarContainerClass", "getAvatarURL", "userNameClassName")).then((VoiceUser) => {
         Patcher.after("MoreRoleColors-voiceUsers", VoiceUser, "Ay", (_, [props], res) => {
             if (!res?.props) return;
             
@@ -503,15 +505,16 @@ module.exports = class MoreRoleColors {
             });
             if (!usernameElement) return;
             
-            const colorObject = this.getColorObjectForMember(guildId, member);
-            this.applyRoleStyle(usernameElement, colorObject, this.settings.voiceUsersGradient);
+            const colorObject = pluginInstance.getColorObjectForMember(guildId, member);
+            pluginInstance.applyRoleStyle(usernameElement, colorObject, pluginInstance.settings.voiceUsersGradient);
             
             const isSpeaking = props?.speaking;
-            if (this.settings.speakingIndicator && !isSpeaking) {
+            if (pluginInstance.settings.speakingIndicator && !isSpeaking) {
                 usernameElement.style.opacity = "0.56";
             }
             
             usernameElement.style.backfaceVisibility = "hidden";
+        });
         });
     }
 
