@@ -2,10 +2,11 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.4.1
+ * @version 9.4.2
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
+ * @runAt idle
  */
 
 const { React, Webpack, ReactDOM, UI } = BdApi;
@@ -13,7 +14,7 @@ const { createRoot } = ReactDOM;
 const { Patcher } = BdApi;
 const { Filters } = Webpack;
 
-let [
+const [
     NotificationUtils,
     NotificationSoundModule,
     MessageConstructor,
@@ -21,6 +22,7 @@ let [
     Dispatcher,
     MessageActions,
     hasThreadElementModule,
+    Message,
     messageReferenceSelectors,
     PopoutModule,
     trailingModule,
@@ -37,6 +39,7 @@ let [
     { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
     { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
     { filter: Webpack.Filters.byKeys("hasThread") }, // hasThreadElementModule
+    { filter: Webpack.Filters.bySource("Message must not be a thread starter message"), declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message")}, // Message
     { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
     { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
     { filter: Webpack.Filters.byKeys('bar', 'trailing') }, // trailingModule
@@ -46,56 +49,6 @@ let [
     { filter: Webpack.Filters.byStrings("getStateFromStores"), searchExports: true }, // useStateFromStores
     { filter: Webpack.Filters.byKeys("appAsidePanelWrapper", "app") } // appSidePanelSelectors
 );
-
-BdApi.Utils.forceLoad(BdApi.Webpack.getBySource("RecentsPopoutRenderer", { raw: true, searchDefault: false }).id)
-
-function getMessageType() {
-    let Message = BdApi.Webpack.getBySource("Message must not be a thread starter message");
-    if (!Message) return null;
-    Message = Message.A;
-    if (String(Message.type).includes("Message must not be a thread starter message")) return Message;
-
-    const node = BdApi.ReactUtils.wrapInHooks(Message)({
-        channel: {
-            type: 0,
-            hasFlag: () => true,
-            isNSFW: () => false,
-            getGuildId: () => 1,
-            isPrivate: () => false,
-            isObfuscated: () => false,
-            isDM: () => false,
-            isSystemDM: () => false,
-            rawRecipients: [],
-            getRecipientId: () => 0,
-            isForumPost: () => false,
-            isModeratorReportChannel: () => false,
-            isMultiUserDM: () => false,
-            isManaged: () => false,
-            id: 1
-        }
-    }).props.children.props.children;
-
-    BdApi.ReactUtils.wrapInHooks(node.type)({
-        ...node.props,
-        channelStream: {
-            map: v => {
-                Message = v({ content: { timestamp: new Date() }, type: "MESSAGE", groupId: false }).type;
-                return [];
-            }
-        }
-    });
-
-    return Message;
-}
-
-const Message = (() => {
-    try { return getMessageType(); }
-    catch (e) { console.error("[PingNotification] getMessageType failed:", e); return null; }
-})();
-
-if (!Message) {
-    UI.showNotice("PingNotification ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
-}
 
 function resolveRenderMessage(InboxTabs) {
     const tabNode = BdApi.ReactUtils.wrapInHooks(InboxTabs)({ tab: 1 })
@@ -177,13 +130,14 @@ function updateDOMReferences() {
 }
 
 let liveMessages = [];
+
 const config = {
     changelog: [
         {
-            "title": "9.4.1",
+            "title": "9.4.2",
             "type": "added",
             "items": [
-                "Fixes from the atrocious discord update."
+                "Fixed launch issues and reverted back temporary code."
             ]
         }
     ],
@@ -719,7 +673,7 @@ module.exports = class PingNotification {
         });
     }
 
-    start() {
+    async start() {
         const lastVersion = BdApi.Data.load('PingNotification', 'lastVersion');
         if (lastVersion !== this.meta.version) {
             BdApi.UI.showChangelogModal({
@@ -728,7 +682,9 @@ module.exports = class PingNotification {
                 changes: config.changelog
             });
             BdApi.Data.save('PingNotification', 'lastVersion', this.meta.version);
-        }    
+        }
+
+        await BdApi.Utils.forceLoad(BdApi.Webpack.getBySource("RecentsPopoutRenderer", { raw: true, searchDefault: false }).id)
 
         this.messageCreateHandler = (event) => {
             if (!event?.message) return;
@@ -1311,6 +1267,7 @@ module.exports = class PingNotification {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            margin-left: 0em;
         }
 
         .pn-hist-popout-item:last-child {
