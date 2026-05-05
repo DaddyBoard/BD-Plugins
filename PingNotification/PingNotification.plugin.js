@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.4.2
+ * @version 9.4.3
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -14,6 +14,9 @@ const { createRoot } = ReactDOM;
 const { Patcher } = BdApi;
 const { Filters } = Webpack;
 
+if (BdApi.Plugins.get("ZeresPluginLibrary")) {
+    BdApi.UI.showConfirmationModal("PingNotification", "ZeresPluginLibrary is installed. This plugin will not work with it. Please DELETE it and reload Discord. ZLib has been hard-broken for some time now, and no official plugins need this library anymore. It should be deleted off your system.");
+}
 const [
     NotificationUtils,
     NotificationSoundModule,
