@@ -7,31 +7,41 @@
 * @invite ggNWGDV7e2
 */
 
-const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM} = BdApi;
+const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM } = BdApi;
 const { createRoot } = ReactDOM;
-const MessageActions = Webpack.getByKeys("fetchMessage", "deleteMessage");
-const MessageStore = Webpack.getStore("MessageStore");
-const Message = Webpack.getBySource("Message must not be a thread starter message", {raw:true}).declarations.nG
+
+const {MessageStore, ChannelStore, UserStore, ReferencedMessageStore} = BdApi.Webpack.Stores;
+
+const [
+    MessageActions,
+    MessageConstructor,
+    Dispatcher,
+    ChannelActions,
+    Message,
+    loadThreadModule
+] = Webpack.getBulk(
+    { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
+    { filter: Webpack.Filters.byPrototypeKeys("addReaction") }, // MessageConstructor
+    { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
+    { filter: m => m.clearChannel }, // ChannelActions
+    { filter: Webpack.Filters.bySource("Message must not be a thread starter message"), declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message")}, // Message
+    { filter: m => m.loadThread } // loadThreadModule
+);
+const loadThread = loadThreadModule?.loadThread;
 
 if (!Message) {
     BdApi.UI.showNotice("PeekMessageLinks ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
 }
-const ChannelStore = Webpack.getStore("ChannelStore");
-const MessageConstructor = Webpack.getByPrototypeKeys("addReaction");
-const UserStore = Webpack.getStore("UserStore");
-const Dispatcher = Webpack.getByKeys("subscribe", "dispatch", { searchExports: true });
-const ReferencedMessageStore = Webpack.getStore("ReferencedMessageStore");
-const ChannelActions = Webpack.getModule(a => a.clearChannel);
-const updateMessageReferenceStore = (()=>{
-    function getActionHandler(){
+
+const updateMessageReferenceStore = (() => {
+    function getActionHandler() {
         const nodes = Dispatcher._actionHandlers._dependencyGraph.nodes;
         const storeHandlers = Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
         return storeHandlers.actionHandler["CREATE_PENDING_REPLY"];
     }
     const target = getActionHandler();
-    return (message) => target({message});
+    return (message) => target({ message });
 })();
-const loadThread = BdApi.Webpack.getModule(a => a.loadThread).loadThread;
 
 const config = {
     changelog: [
