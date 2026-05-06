@@ -1,11 +1,12 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.10
+* @version 1.0.11
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
 * @invite ggNWGDV7e2
+* @runAt idle
 */
 
 const { Webpack, React, Patcher, ReactUtils, Utils, Data, UI, DOM, Filters} = BdApi;
@@ -36,10 +37,10 @@ const joinedElements = avatarElement1.userAvatar + " " + avatarElement2.avatar +
 const config = {
     changelog: [
         {
-            "title": "v1.0.10",
+            "title": "v1.0.11",
             "type": "fixed",
             "items": [
-                "Fixed [#84](https://github.com/DaddyBoard/BD-Plugins/issues/84), thank you Miniontoby."
+                "Plugin should start properly now."
             ]
         }
     ],
