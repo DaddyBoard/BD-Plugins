@@ -1,10 +1,11 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.8
+* @version 1.2.9
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
+* @runAt idle
 */
 
 const { Webpack, React, Patcher, ReactUtils, Utils, DOM, ReactDOM } = BdApi;
