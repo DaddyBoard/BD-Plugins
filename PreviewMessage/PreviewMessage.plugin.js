@@ -134,7 +134,7 @@ module.exports = class PreviewMessage {
         const [draftStore, messageActions, chatButtonsGroup, chatButton] = await Promise.all([
             Webpack.waitForModule((m) => m.getDraft),
             Webpack.waitForModule((m) => m.sendBotMessage),
-            Webpack.waitForModule(Filters.bySource("showAllButtons", "promotionsByType"), { defaultExport: false }),
+            Webpack.waitForModule(Filters.bySource("isSubmitButtonEnabled", ".A.getActiveOption("), { defaultExport: false }),
             Webpack.waitForModule(Filters.bySource("CHAT_INPUT_BUTTON_NOTIFICATION", "animated.div"), { defaultExport: false }),
         ]);
 
