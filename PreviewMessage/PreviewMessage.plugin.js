@@ -2,19 +2,19 @@
 * @name PreviewMessage
 * @author DaddyBoard
 * @authorId 241334335884492810
-* @version 1.2.0
+* @version 1.2.1
 * @description Allows you to preview a message before you send it. Original idea by TheCommieAxolotl, rewritten and maintained by DaddyBoard.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
 */
 
 const { Webpack, React, Patcher, Plugins } = BdApi;
-
-const DraftStore = Webpack.getModule((m) => m.getDraft);
-const MessageActions = Webpack.getModule((m) => m.sendBotMessage);
-const ChatButtonsGroup = Webpack.getBySource("showAllButtons", "promotionsByType")?.A;
-const ChatButton = Webpack.getBySource("CHAT_INPUT_BUTTON_NOTIFICATION", "animated.div")?.A;
+const { Filters } = Webpack;
 const Tooltip = BdApi.Components.Tooltip;
+
+let DraftStore;
+let MessageActions;
+let ChatButton;
 
 function PreviewButton({ channel }) {
     return React.createElement(Tooltip, {
@@ -130,8 +130,19 @@ module.exports = class PreviewMessage {
         this.meta = meta;
     }
 
-    start() {
-        Patcher.after("PreviewMessage", ChatButtonsGroup, "type", (_, args, res) => {
+    async start() {
+        const [draftStore, messageActions, chatButtonsGroup, chatButton] = await Promise.all([
+            Webpack.waitForModule((m) => m.getDraft),
+            Webpack.waitForModule((m) => m.sendBotMessage),
+            Webpack.waitForModule(Filters.bySource("showAllButtons", "promotionsByType"), { defaultExport: false }),
+            Webpack.waitForModule(Filters.bySource("CHAT_INPUT_BUTTON_NOTIFICATION", "animated.div"), { defaultExport: false }),
+        ]);
+
+        DraftStore = draftStore;
+        MessageActions = messageActions;
+        ChatButton = chatButton.A;
+
+        Patcher.after("PreviewMessage", chatButtonsGroup.A, "type", (_, args, res) => {
             if (args.length === 2 && !args[0].disabled && args[0].type.analyticsName === "normal" && Array.isArray(res.props.children)) {
                 res.props.children.unshift(React.createElement(PreviewButton, { channel: args[0].channel }));
             }
