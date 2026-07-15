@@ -432,14 +432,27 @@ module.exports = class MoreRoleColors {
     injectCSS() {
         BdApi.DOM.addStyle("MoreRoleColors", `
             [class*="markup_"] code,
-            [class*="markup_"] pre,
+            [class*="markup_"] pre {
+                color: var(--text-default, var(--text-normal, #dbdee1)) !important;
+                -webkit-text-fill-color: currentColor !important;
+            }
+
+            [class*="markup_"] code * {
+                -webkit-text-fill-color: currentColor !important;
+            }
+
             [class*="markup_"] [class*="mention"],
             [class*="markup_"] [class*="roleMention"],
             [class*="markup_"] a,
             [class*="markup_"] [class*="timestamp"],
             [class*="markup_"] [class*="spoilerContent"],
             [class*="markup_"] [class*="blockquoteContent"] {
-                -webkit-text-fill-color: initial !important;
+                -webkit-text-fill-color: currentColor !important;
+            }
+
+            [class*="poll" i],
+            [class*="poll" i] * {
+                -webkit-text-fill-color: currentColor !important;
             }
         `);
     }
@@ -478,7 +491,7 @@ module.exports = class MoreRoleColors {
             }
 
             element.style = {
-                color: "unset",
+                color: "var(--text-default, var(--text-normal, #dbdee1))",
                 background: `${gradient} text`,
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent"
