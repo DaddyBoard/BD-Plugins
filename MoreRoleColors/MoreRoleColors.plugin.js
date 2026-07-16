@@ -441,6 +441,11 @@ module.exports = class MoreRoleColors {
                 -webkit-text-fill-color: currentColor !important;
             }
 
+            [class*="markup_"] s,
+            [class*="markup_"] del {
+                text-decoration-color: var(--text-default, var(--text-normal, #dbdee1)) !important;
+            }
+
             [class*="markup_"] [class*="mention"],
             [class*="markup_"] [class*="roleMention"],
             [class*="markup_"] a,
