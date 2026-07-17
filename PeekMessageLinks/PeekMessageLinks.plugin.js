@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.9
+* @version 1.2.10
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -13,36 +13,15 @@ const { createRoot } = ReactDOM;
 
 const {MessageStore, ChannelStore, UserStore, ReferencedMessageStore} = BdApi.Webpack.Stores;
 
-const [
-    MessageActions,
-    MessageConstructor,
-    Dispatcher,
-    ChannelActions,
-    Message,
-    loadThreadModule
-] = Webpack.getBulk(
-    { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
-    { filter: Webpack.Filters.byPrototypeKeys("addReaction") }, // MessageConstructor
-    { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
-    { filter: m => m.clearChannel }, // ChannelActions
-    { filter: Webpack.Filters.bySource("Message must not be a thread starter message"), declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message")}, // Message
-    { filter: m => m.loadThread } // loadThreadModule
-);
-const loadThread = loadThreadModule?.loadThread;
-
-if (!Message) {
-    BdApi.UI.showNotice("PeekMessageLinks ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
-}
-
-const updateMessageReferenceStore = (() => {
-    function getActionHandler() {
-        const nodes = Dispatcher._actionHandlers._dependencyGraph.nodes;
-        const storeHandlers = Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
-        return storeHandlers.actionHandler["CREATE_PENDING_REPLY"];
-    }
-    const target = getActionHandler();
-    return (message) => target({ message });
-})();
+// Defer module declarations so we can resolve them when the registry is ready
+let MessageActions;
+let MessageConstructor;
+let Dispatcher;
+let ChannelActions;
+let Message;
+let loadThreadModule;
+let loadThread;
+let updateMessageReferenceStore;
 
 const config = {
     changelog: [
@@ -118,6 +97,8 @@ module.exports = class PeekMessageLinks {
         };
         this.settings = this.loadSettings();
         this.hoverPopupTimeout = null;
+        this.active = false;
+        this.abortController = null;
     }
 
     loadSettings() {
@@ -154,7 +135,23 @@ module.exports = class PeekMessageLinks {
         });
     }
 
+    initUpdateMessageReferenceStore() {
+        if (updateMessageReferenceStore) return;
+        try {
+            const nodes = Dispatcher._actionHandlers._dependencyGraph.nodes;
+            const storeHandlers = Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
+            const target = storeHandlers.actionHandler["CREATE_PENDING_REPLY"];
+            updateMessageReferenceStore = (message) => target({ message });
+        } catch (e) {
+            BdApi.Logger.error(this.meta.name, "Failed to initialize updateMessageReferenceStore:", e);
+        }
+    }
+
     start() {
+        this.active = true;
+        this.abortController = new AbortController();
+        BdApi.Logger.log(this.meta.name, `(v${this.meta.version}) has started.`);
+
         const lastVersion = BdApi.Data.load('PeekMessageLinks', 'lastVersion');
         if (lastVersion !== this.meta.version) {
             BdApi.UI.showChangelogModal({
@@ -164,12 +161,67 @@ module.exports = class PeekMessageLinks {
             });
             BdApi.Data.save('PeekMessageLinks', 'lastVersion', this.meta.version);
         }
-        this.patchChannelMention();
+
+        const timeoutId = setTimeout(() => {
+            if (this.active) {
+                BdApi.Logger.error(this.meta.name, "Timeout waiting for Message component.");
+                this.abortController?.abort();
+            }
+        }, 15000);
+
+        Webpack.waitForModule(
+            Webpack.Filters.bySource("Message must not be a thread starter message"),
+            { 
+                declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message"),
+                signal: this.abortController.signal
+            }
+        ).then((resolvedMessage) => {
+            clearTimeout(timeoutId);
+            // Abort setup if the plugin was stopped before resolution completed
+            if (!this.active) return;
+
+            if (!resolvedMessage) {
+                BdApi.UI.showNotice("PeekMessageLinks ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
+                return;
+            }
+
+            Message = resolvedMessage;
+
+            const bulkResult = Webpack.getBulk(
+                { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
+                { filter: Webpack.Filters.byPrototypeKeys("addReaction") }, // MessageConstructor
+                { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
+                { filter: m => m.clearChannel }, // ChannelActions
+                { filter: m => m.loadThread } // loadThreadModule
+            );
+
+            MessageActions = bulkResult[0];
+            MessageConstructor = bulkResult[1];
+            Dispatcher = bulkResult[2];
+            ChannelActions = bulkResult[3];
+            loadThreadModule = bulkResult[4];
+            loadThread = loadThreadModule?.loadThread;
+
+            this.initUpdateMessageReferenceStore();
+            this.patchChannelMention();
+        }).catch((error) => {
+            clearTimeout(timeoutId);
+            BdApi.Logger.error(this.meta.name, "Failed to resolve Webpack modules:", error);
+            if (this.active) {
+                BdApi.UI.showNotice("PeekMessageLinks ERROR: Failed to resolve Discord modules. Check the console for details.", { type: 'error' });
+            }
+        });
     }
 
     stop() {
+        this.active = false;
+        if (this.abortController) {
+            this.abortController.abort();
+            this.abortController = null;
+        }
         Patcher.unpatchAll("PeekMessageLinks-ChannelMentionBubble");
         this.removeAllPopups();
+        BdApi.Logger.log(this.meta.name, `(v${this.meta.version}) has stopped.`);
     }
 
     patchChannelMention() {
@@ -296,7 +348,9 @@ module.exports = class PeekMessageLinks {
                             messageId: message.messageReference.message_id
                         });
                     }
-                    updateMessageReferenceStore(referencedMessage);
+                    if (updateMessageReferenceStore) {
+                        updateMessageReferenceStore(referencedMessage);
+                    }
                 }
             }
             
@@ -364,7 +418,7 @@ module.exports = class PeekMessageLinks {
         const channel = ChannelStore.getChannel(channelId || (messages[0] && messages[0].channel_id));
         
         if (!channel) {
-            console.log("No channel found");
+            BdApi.Logger.log(this.meta.name, "No channel found");
             return;
         }
 
