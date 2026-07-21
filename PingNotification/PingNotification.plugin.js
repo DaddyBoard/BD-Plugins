@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.4.3
+ * @version 9.4.4
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -14,133 +14,27 @@ const { createRoot } = ReactDOM;
 const { Patcher } = BdApi;
 const { Filters } = Webpack;
 
+let plugin;
+
 if (BdApi.Plugins.get("ZeresPluginLibrary")) {
     BdApi.UI.showConfirmationModal("PingNotification", "ZeresPluginLibrary is installed. This plugin will not work with it. Please DELETE it and reload Discord. ZLib has been hard-broken for some time now, and no official plugins need this library anymore. It should be deleted off your system.");
 }
-const [
-    NotificationUtils,
-    NotificationSoundModule,
-    MessageConstructor,
-    transitionTo,
-    Dispatcher,
-    MessageActions,
-    hasThreadElementModule,
-    Message,
-    messageReferenceSelectors,
-    PopoutModule,
-    trailingModule,
-    DiscordProgressBar,
-    constructMessageObj,
-    ChannelConstructor,
-    useStateFromStores,
-    appSidePanelSelectors
-] = Webpack.getBulk(
-    { filter: Webpack.Filters.byStrings("SUPPRESS_NOTIFICATIONS", "SELF_MENTIONABLE_SYSTEM"), searchExports: true }, // NotificationUtils
-    { filter: m => m?.playNotificationSound }, // NotificationSoundModule
-    { filter: Webpack.Filters.byPrototypeKeys("addReaction") }, // MessageConstructor
-    { filter: Webpack.Filters.byStrings("transitionToGuild - Transitioning to"), searchExports: true }, // transitionTo
-    { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
-    { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
-    { filter: Webpack.Filters.byKeys("hasThread") }, // hasThreadElementModule
-    { filter: Webpack.Filters.bySource("Message must not be a thread starter message"), declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message")}, // Message
-    { filter: Webpack.Filters.byKeys("messageSpine", "repliedMessageClickableSpine") }, // messageReferenceSelectors
-    { filter: (a) => a?.prototype?.render && a.Animation, searchExports: true }, // PopoutModule
-    { filter: Webpack.Filters.byKeys('bar', 'trailing') }, // trailingModule
-    { filter: Webpack.Filters.byStrings("percent", "foregroundGradientColor"), searchExports: true }, // DiscordProgressBar
-    { filter: Webpack.Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), searchExports: true }, // constructMessageObj
-    { filter: Webpack.Filters.byPrototypeKeys("addCachedMessages") }, // ChannelConstructor
-    { filter: Webpack.Filters.byStrings("getStateFromStores"), searchExports: true }, // useStateFromStores
-    { filter: Webpack.Filters.byKeys("appAsidePanelWrapper", "app") } // appSidePanelSelectors
-);
 
+/* PN History disabled — renderMessage no longer exists on InboxTabs tree
 function resolveRenderMessage(InboxTabs) {
     const tabNode = BdApi.ReactUtils.wrapInHooks(InboxTabs)({ tab: 1 })
         .props.children.props.children.props.children;
     return BdApi.ReactUtils.wrapInHooks(tabNode.type)({}).props.renderMessage;
 }
-
-let renderMessage = null;
-{
-    const inboxFilter = Webpack.Filters.byStrings(".BOOKMARKS?(", ".MENTIONS?(");
-    const tryResolve = (mod) => {
-        try { renderMessage = resolveRenderMessage(mod); }
-        catch (e) { console.error("[PingNotification] resolveRenderMessage failed:", e); }
-    };
-    const existing = BdApi.Webpack.getModule(inboxFilter, { searchExports: true });
-    if (existing) {
-        tryResolve(existing);
-    } else {
-        Webpack.waitForModule(inboxFilter, { searchExports: true }).then(mod => {
-            if (mod) tryResolve(mod);
-            if (!renderMessage) {
-                UI.showNotice("PingNotification ERROR: Could not resolve the renderMessage function. Please report this on the Github page!", { type: 'error' });
-            }
-        });
-    }
-}
-
-const {
-    IdleStore,
-    WindowStore,
-    SelectedChannelStore,
-    UserGuildSettingsStore,
-    UserStore,
-    ChannelStore,
-    GuildStore,
-    RelationshipStore,
-    GuildMemberStore,
-    MessageStore,
-    ReferencedMessageStore,
-    GuildRoleStore,
-    PresenceStore,
-    SpeakingStore
-} = BdApi.Webpack.Stores;
-
-if (!NotificationUtils) {
-    UI.showNotice("PingNotification ERROR: Could not find the NotificationUtils module. Please report this on the Github page!", { type: 'error' });
-}
-
-const hasThreadElement = hasThreadElementModule.hasThread;
-const trailing = trailingModule.trailing;
-const UserFetchModule = Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Webpack.Filters.byStrings("USER_UPDATE", "Promise.resolve") })
-const windowArea = BdApi.Webpack.getById("71855");
-
-const MemberAreaAvatarFilter = BdApi.Webpack.Filters.byStrings("statusColor", "isTyping");
-const MemberAreaAvatar = BdApi.Webpack.getModule(x => MemberAreaAvatarFilter(x?.type), { searchExports: true });
-
-const ChannelAckModule = (() => {
-    const filter = BdApi.Webpack.Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
-    const module = BdApi.Webpack.getModule((e, m) => filter(BdApi.Webpack.modules[m.id]));
-    return Object.values(module).find(m => m.toString().includes("type:\"CHANNEL_ACK\",channelId"));
-})();
-const updateMessageReferenceStore = (()=>{
-    function getActionHandler(){
-        const nodes = Dispatcher._actionHandlers._dependencyGraph.nodes;
-        const storeHandlers = Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
-        return storeHandlers.actionHandler["CREATE_PENDING_REPLY"];
-    }
-    const target = getActionHandler();
-    return (message) => target({message});
-})();
-
-const { appAsidePanelWrapper, app } = appSidePanelSelectors;
-let container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
-let appElem = container ? container.querySelector(`.${app}`) : null;
-
-function updateDOMReferences() {
-    container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
-    appElem = container ? container.querySelector(`.${app}`) : null;
-}
-
-let liveMessages = [];
+*/
 
 const config = {
     changelog: [
         {
-            "title": "9.4.2",
+            "title": "9.4.4",
             "type": "added",
             "items": [
-                "Fixed launch issues and reverted back temporary code."
+                "Fixed launch issues. PN History has been completely disabled until I figure out how to fix it."
             ]
         }
     ],
@@ -575,6 +469,7 @@ const config = {
 
 module.exports = class PingNotification {
     constructor(meta) {
+        plugin = this;
         this.meta = meta;
         this.defaultSettings = {
             duration: 15000,
@@ -614,55 +509,189 @@ module.exports = class PingNotification {
             readjustAnimationDuration: 100,
             overrideDND: "off",
             autoSubscribeToAllServers: false,
-            showHistoryButton: true,
+            showHistoryButton: false,
             keywordOnlyMode: false,
             sameChannelNotifications: false,
             sameChannelReactionNotifications: true,
             sameChannelThreadNotifications: true
         };
         this.settings = this.loadSettings();
+        this.settings.showHistoryButton = false;
         this.activeNotifications = [];
         this.sessionMessages = [];
         this.testNotificationData = null;
+        this.liveMessages = [];
+        this.container = null;
+        this.appElem = null;
+        this._modulesReady = false;
 
         this.onMessageReceived = this.onMessageReceived.bind(this);
         this.messageThreadCreateHandler = this.messageThreadCreateHandler.bind(this);
         this.threadDeleteHandler = this.threadDeleteHandler.bind(this);
         this.reactionRemoveHandler = this.reactionRemoveHandler.bind(this);
+    }
 
-        let missingModules = false;
-        let missingModulesName = "";
+    async waitForValue(getter, signal, timeout = 30000) {
+        const start = Date.now();
+        while (Date.now() - start < timeout) {
+            if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+            try {
+                const value = getter();
+                if (value != null) return value;
+            } catch (e) {}
+            await new Promise(r => setTimeout(r, 100));
+        }
+        try { return getter(); } catch (e) { return null; }
+    }
 
-        if (!appSidePanelSelectors.app) {
-            missingModules = true;
-            missingModulesName = "appSidePanelSelectors";
-        }
-        if (!NotificationUtils) {
-            missingModules = true;
-            missingModulesName = "NotificationUtils";
-        }
-        if (!windowArea) {
-            missingModules = true;
-            missingModulesName = "windowArea";
-        }
-        if (missingModules) {
-            UI.showNotification({
-                title: "PingNotification",
-                content: `**ERROR:** Could not find the ${missingModulesName} module. Please report this on the Github page!`,
-                type: "error",
-                duration: 30000,
-                actions: [
-                    {
-                        label: "Open Github",
-                        onClick: () => {
-                            window.open(`https://github.com/DaddyBoard/BD-Plugins/issues/new?title=Auto%20generated%20bug%20report%20for%20missing%20module&body=Filter%20search%20for%20%60${missingModulesName}%60%20failed.`);
-                        }
-                    }
-                ]
-            })
+    async waitForModule(filter, options = {}, timeout = 30000) {
+        const local = new AbortController();
+        const timer = setTimeout(() => local.abort(), timeout);
+        const onAbort = () => local.abort();
+        this._moduleAbort?.signal.addEventListener("abort", onAbort);
+        try {
+            return await Webpack.waitForModule(filter, { ...options, signal: local.signal });
+        } catch (e) {
+            return Webpack.getModule(filter, options) ?? null;
+        } finally {
+            clearTimeout(timer);
+            this._moduleAbort?.signal.removeEventListener("abort", onAbort);
         }
     }
 
+    reportMissingModule(missingModulesName) {
+        UI.showNotification({
+            title: "PingNotification",
+            content: `**ERROR:** Could not find the ${missingModulesName} module. Please report this on the Github page!`,
+            type: "error",
+            duration: 30000,
+            actions: [
+                {
+                    label: "Open Github",
+                    onClick: () => {
+                        window.open(`https://github.com/DaddyBoard/BD-Plugins/issues/new?title=Auto%20generated%20bug%20report%20for%20missing%20module&body=Filter%20search%20for%20%60${missingModulesName}%60%20failed.`);
+                    }
+                }
+            ]
+        });
+    }
+
+    updateDOMReferences() {
+        const selectors = this.appSidePanelSelectors;
+        if (!selectors) return;
+        const { appAsidePanelWrapper, app } = selectors;
+        this.container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
+        this.appElem = this.container ? this.container.querySelector(`.${app}`) : null;
+    }
+
+    async loadModules() {
+        this._moduleAbort = new AbortController();
+        const { signal } = this._moduleAbort;
+
+        const queries = [
+            { name: "NotificationUtils", filter: Filters.byStrings("SUPPRESS_NOTIFICATIONS", "SELF_MENTIONABLE_SYSTEM"), searchExports: true },
+            { name: "NotificationSoundModule", filter: m => m?.playNotificationSound },
+            { name: "MessageConstructor", filter: Filters.byPrototypeKeys("addReaction") },
+            { name: "transitionTo", filter: Filters.byStrings("transitionToGuild - Transitioning to"), searchExports: true },
+            { name: "Dispatcher", filter: Filters.byKeys("subscribe", "dispatch"), searchExports: true },
+            { name: "MessageActions", filter: Filters.byKeys("fetchMessage", "deleteMessage") },
+            { name: "hasThreadElementModule", filter: Filters.byKeys("hasThread") },
+            { name: "Message", filter: Filters.bySource("Message must not be a thread starter message"), declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message") },
+            { name: "messageReferenceSelectors", filter: Filters.byKeys("messageSpine", "repliedMessageClickableSpine") },
+            { name: "PopoutModule", filter: (a) => a?.prototype?.render && a.Animation, searchExports: true },
+            { name: "trailingModule", filter: Filters.byKeys("bar", "trailing") },
+            { name: "DiscordProgressBar", filter: Filters.byStrings("percent", "foregroundGradientColor"), searchExports: true },
+            { name: "constructMessageObj", filter: Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), searchExports: true },
+            { name: "ChannelConstructor", filter: Filters.byPrototypeKeys("addCachedMessages") },
+            { name: "useStateFromStores", filter: Filters.byStrings("getStateFromStores"), searchExports: true },
+            { name: "appSidePanelSelectors", filter: Filters.byKeys("appAsidePanelWrapper", "app") }
+        ];
+
+        const results = await Promise.all(queries.map(async (q) => {
+            const opts = {};
+            if (q.searchExports) opts.searchExports = true;
+            if (q.declarationFilter) opts.declarationFilter = q.declarationFilter;
+            const mod = await this.waitForModule(q.filter, opts);
+            if (!mod) console.warn(`[PingNotification] Module missing: ${q.name}`);
+            else console.log(`[PingNotification] Module loaded: ${q.name}`);
+            return mod;
+        }));
+
+        queries.forEach((q, i) => {
+            this[q.name] = results[i];
+        });
+
+        this.hasThreadElement = this.hasThreadElementModule?.hasThread;
+        this.trailing = this.trailingModule?.trailing;
+
+        const storeNames = [
+            "IdleStore", "WindowStore", "SelectedChannelStore", "UserGuildSettingsStore",
+            "UserStore", "ChannelStore", "GuildStore", "RelationshipStore",
+            "GuildMemberStore", "MessageStore", "ReferencedMessageStore", "GuildRoleStore",
+            "PresenceStore", "SpeakingStore"
+        ];
+
+        await Promise.all(storeNames.map(async (name) => {
+            this[name] = await this.waitForValue(() => Webpack.Stores[name], signal);
+            if (!this[name]) console.warn(`[PingNotification] Store missing: ${name}`);
+            else console.log(`[PingNotification] Store loaded: ${name}`);
+        }));
+
+        this.UserFetchModule = await this.waitForValue(
+            () => Webpack.getMangled('type:"USER_PROFILE_FETCH_START"', { fetchUser: Filters.byStrings("USER_UPDATE", "Promise.resolve") }),
+            signal
+        );
+        this.windowArea = await this.waitForValue(() => Webpack.getById("71855"), signal);
+
+        this.MemberAreaAvatar = await this.waitForValue(() => {
+            const MemberAreaAvatarFilter = Filters.byStrings("statusColor", "isTyping");
+            return Webpack.getModule(x => MemberAreaAvatarFilter(x?.type), { searchExports: true });
+        }, signal);
+
+        this.ChannelAckModule = await this.waitForValue(() => {
+            const filter = Filters.byStrings("type:\"CHANNEL_ACK\",channelId", "type:\"BULK_ACK\",channels:");
+            const mod = Webpack.getModule((e, m) => filter(Webpack.modules[m.id]));
+            if (!mod) return null;
+            return Object.values(mod).find(m => typeof m === "function" && m.toString().includes("type:\"CHANNEL_ACK\",channelId"));
+        }, signal);
+
+        this.updateMessageReferenceStore = await this.waitForValue(() => {
+            const nodes = this.Dispatcher?._actionHandlers?._dependencyGraph?.nodes;
+            if (!nodes) return null;
+            const storeHandlers = Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
+            const target = storeHandlers?.actionHandler?.["CREATE_PENDING_REPLY"];
+            if (!target) return null;
+            return (message) => target({ message });
+        }, signal);
+
+        /* PN History disabled — awaiting InboxTabs blocked start()/subscriptions until inbox opened
+        try {
+            const inboxFilter = Filters.byStrings(".BOOKMARKS?(", ".MENTIONS?(");
+            const inbox = await this.waitForModule(inboxFilter, { searchExports: true });
+            if (inbox) this.renderMessage = resolveRenderMessage(inbox);
+        } catch (e) {
+            console.error("[PN History] resolveRenderMessage failed:", e);
+        }
+        */
+
+        this.updateDOMReferences();
+
+        let missingModulesName = null;
+        if (!this.appSidePanelSelectors?.app) missingModulesName = "appSidePanelSelectors";
+        else if (!this.NotificationUtils) missingModulesName = "NotificationUtils";
+        else if (!this.windowArea) missingModulesName = "windowArea";
+        else if (!this.Dispatcher) missingModulesName = "Dispatcher";
+        else if (!this.Message) missingModulesName = "Message";
+
+        if (missingModulesName) {
+            this.reportMissingModule(missingModulesName);
+            this._modulesReady = false;
+            return false;
+        }
+
+        this._modulesReady = true;
+        return true;
+    }
     inMana(node) {
         let item = BdApi.ReactUtils.getInternalInstance(document.querySelector("div[class^=app_] > div[class^=app_]"));
 
@@ -677,6 +706,15 @@ module.exports = class PingNotification {
     }
 
     async start() {
+        let modulesReady;
+        try {
+            modulesReady = await this.loadModules();
+        } catch (e) {
+            if (e?.name === "AbortError") return;
+            throw e;
+        }
+        if (!modulesReady) return;
+
         const lastVersion = BdApi.Data.load('PingNotification', 'lastVersion');
         if (lastVersion !== this.meta.version) {
             BdApi.UI.showChangelogModal({
@@ -687,8 +725,6 @@ module.exports = class PingNotification {
             BdApi.Data.save('PingNotification', 'lastVersion', this.meta.version);
         }
 
-        await BdApi.Utils.forceLoad(BdApi.Webpack.getBySource("RecentsPopoutRenderer", { raw: true, searchDefault: false }).id)
-
         this.messageCreateHandler = (event) => {
             if (!event?.message) return;
 
@@ -698,7 +734,7 @@ module.exports = class PingNotification {
 
         this.messageUpdateHandler = (event) => {
             if (!event?.message) return;
-            if (liveMessages.includes(event.message.id)) return;
+            if (this.liveMessages.includes(event.message.id)) return;
             const msgTime = new Date(event.message.timestamp).getTime();
             if (Date.now() - msgTime > 5000) return;
             this.onMessageReceived(event, true);
@@ -726,21 +762,23 @@ module.exports = class PingNotification {
             }
         };
 
+        /* PN History disabled
         if (this.settings.showHistoryButton) {
             this.patchTitleBar();
         }
+        */
 
-        Dispatcher.subscribe("MESSAGE_CREATE", this.messageCreateHandler);
-        Dispatcher.subscribe("THREAD_CREATE", this.messageThreadCreateHandler);
-        Dispatcher.subscribe("THREAD_DELETE", this.threadDeleteHandler);
-        Dispatcher.subscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
-        Dispatcher.subscribe("MESSAGE_REACTION_REMOVE", this.reactionRemoveHandler);
-        Dispatcher.subscribe("MESSAGE_ACK", this.messageAckHandler);
-        Dispatcher.subscribe("MESSAGE_UPDATE", this.messageUpdateHandler);
+        this.Dispatcher.subscribe("MESSAGE_CREATE", this.messageCreateHandler);
+        this.Dispatcher.subscribe("THREAD_CREATE", this.messageThreadCreateHandler);
+        this.Dispatcher.subscribe("THREAD_DELETE", this.threadDeleteHandler);
+        this.Dispatcher.subscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
+        this.Dispatcher.subscribe("MESSAGE_REACTION_REMOVE", this.reactionRemoveHandler);
+        this.Dispatcher.subscribe("MESSAGE_ACK", this.messageAckHandler);
+        this.Dispatcher.subscribe("MESSAGE_UPDATE", this.messageUpdateHandler);
         const appMount = document.getElementById('app-mount');
         if (appMount) {
             this.domObserver = new MutationObserver(() => {
-                updateDOMReferences();
+                this.updateDOMReferences();
             });
             this.domObserver.observe(appMount, { childList: true, subtree: false });
         }
@@ -884,8 +922,9 @@ module.exports = class PingNotification {
         }
     }
 
+    /* PN History disabled
     patchTitleBar() {
-        Patcher.after("PN", windowArea, "cq", (_, [props], ret) => {
+        Patcher.after("PN", this.windowArea, "cq", (_, [props], ret) => {
             if (props.windowKey?.startsWith("DISCORD_")) return ret;
             if (props.trailing?.props?.children) {
                 props.trailing.props.children.splice(3, 0,
@@ -893,23 +932,25 @@ module.exports = class PingNotification {
                 );
             }
         });
-        reRender("." + trailing);
+        reRender("." + this.trailing);
     }
 
     unpatchTitleBar() {
         Patcher.unpatchAll("PN");
-        reRender("." + trailing);
+        reRender("." + this.trailing);
     }
+    */
 
     stop() {
-        if (Dispatcher) {
-            Dispatcher.unsubscribe("MESSAGE_CREATE", this.messageCreateHandler);
-            Dispatcher.unsubscribe("MESSAGE_ACK", this.messageAckHandler);
-            Dispatcher.unsubscribe("THREAD_CREATE", this.messageThreadCreateHandler);
-            Dispatcher.unsubscribe("THREAD_DELETE", this.threadDeleteHandler);
-            Dispatcher.unsubscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
-            Dispatcher.unsubscribe("MESSAGE_REACTION_REMOVE", this.reactionRemoveHandler);
-            Dispatcher.unsubscribe("MESSAGE_UPDATE", this.messageUpdateHandler);
+        this._moduleAbort?.abort();
+        if (this.Dispatcher) {
+            this.Dispatcher.unsubscribe("MESSAGE_CREATE", this.messageCreateHandler);
+            this.Dispatcher.unsubscribe("MESSAGE_ACK", this.messageAckHandler);
+            this.Dispatcher.unsubscribe("THREAD_CREATE", this.messageThreadCreateHandler);
+            this.Dispatcher.unsubscribe("THREAD_DELETE", this.threadDeleteHandler);
+            this.Dispatcher.unsubscribe("MESSAGE_REACTION_ADD", this.reactionAddHandler);
+            this.Dispatcher.unsubscribe("MESSAGE_REACTION_REMOVE", this.reactionRemoveHandler);
+            this.Dispatcher.unsubscribe("MESSAGE_UPDATE", this.messageUpdateHandler);
         }
         if (this.domObserver) {
             this.domObserver.disconnect();
@@ -918,9 +959,11 @@ module.exports = class PingNotification {
         BdApi.DOM.removeStyle("PingNotificationStyles");
         Patcher.unpatchAll("PN");
         this.unpatchContextMenus();
+        /* PN History disabled
         if (this.settings.showHistoryButton) {
             this.unpatchTitleBar();
         }
+        */
     }
 
     loadSettings() {
@@ -934,8 +977,8 @@ module.exports = class PingNotification {
     }
 
     autoSubscribeToAllServers() {
-        const servers = GuildStore.getGuildsArray();
-        Dispatcher.dispatch({
+        const servers = this.GuildStore.getGuildsArray();
+        this.Dispatcher.dispatch({
             "type": "GUILD_SUBSCRIPTIONS_FLUSH",
             "subscriptions": {
                 ...(servers.reduce((acc, v) => {
@@ -950,7 +993,9 @@ module.exports = class PingNotification {
         });
     }
 
-    css = `
+    get css() {
+
+        return `
         .ping-notification {
             color: var(--text-default);
             border-radius: 12px;
@@ -1121,7 +1166,7 @@ module.exports = class PingNotification {
             pointer-events: none !important;
         }
 
-        .ping-notification-messageContent :is(.${messageReferenceSelectors.messageSpine}:before, .${messageReferenceSelectors.repliedMessageClickableSpine}) {
+        .ping-notification-messageContent :is(.${this.messageReferenceSelectors.messageSpine}:before, .${this.messageReferenceSelectors.repliedMessageClickableSpine}) {
             padding-left: 10px !important;
             margin-left: 40px !important;
         }
@@ -1152,7 +1197,7 @@ module.exports = class PingNotification {
             display: none !important;
         }
 
-        .ping-notification .${hasThreadElement}:after {
+        .ping-notification .${this.hasThreadElement}:after {
             border-bottom: 0px !important;
             border-bottom-left-radius: 0px !important;
             border-left: 0px !important;
@@ -1290,13 +1335,16 @@ module.exports = class PingNotification {
 
     `;
 
+
+    }
+
     onMessageReceived(event, update) {
         if (!event.message?.channel_id) return;
         if (event.message.type === 18) return;
         if (event.message.type === 21) return;
 
-        const channel = ChannelStore.getChannel(event.message.channel_id);
-        const currentUser = UserStore.getCurrentUser();
+        const channel = this.ChannelStore.getChannel(event.message.channel_id);
+        const currentUser = this.UserStore.getCurrentUser();
         if (!channel || event.message.author.id === currentUser.id) return;
 
         const notifyResult = this.shouldNotify(event.message, channel, currentUser);
@@ -1320,8 +1368,8 @@ module.exports = class PingNotification {
     }
 
     async messageThreadCreateHandler(event) {
-        const currentUser = UserStore.getCurrentUser();
-        const presence = PresenceStore.getStatus(currentUser.id);
+        const currentUser = this.UserStore.getCurrentUser();
+        const presence = this.PresenceStore.getStatus(currentUser.id);
 
         if (presence.status === "dnd" && this.settings.overrideDND === "off") {
             return;
@@ -1330,21 +1378,21 @@ module.exports = class PingNotification {
         if (this.settings.keywordOnlyMode) return;
 
         if (!this.settings.enableThreadNotifications) return;
-        const channel = ChannelStore.getChannel(event.channel.id);
-        const parentChannel = ChannelStore.getChannel(channel.parent_id);
-        let author = UserStore.getUser(event.channel.ownerId);
+        const channel = this.ChannelStore.getChannel(event.channel.id);
+        const parentChannel = this.ChannelStore.getChannel(channel.parent_id);
+        let author = this.UserStore.getUser(event.channel.ownerId);
         if (!author) {
-            author = await UserFetchModule.fetchUser(event.channel.ownerId);
+            author = await this.UserFetchModule.fetchUser(event.channel.ownerId);
         }
         if (!event.isNewlyCreated) return;
-        if (event.channel.ownerId === UserStore.getCurrentUser().id) return;
+        if (event.channel.ownerId === this.UserStore.getCurrentUser().id) return;
 
         const threadsIgnoredServers = this.settings.threadsIgnoredServers?.split(",").map(s => s.trim()).filter(Boolean) || [];
         const threadsIgnoredChannels = this.settings.threadsIgnoredChannels?.split(",").map(s => s.trim()).filter(Boolean) || [];
         if (threadsIgnoredServers.includes(parentChannel?.guild_id)) return;
         if (threadsIgnoredChannels.includes(parentChannel?.id)) return;
 
-        const status = UserGuildSettingsStore.getNewForumThreadsCreated(parentChannel)
+        const status = this.UserGuildSettingsStore.getNewForumThreadsCreated(parentChannel)
         if (status) {
             const messageToConstruct = {
                 id: `PingNotification-Thread-${Date.now()}`,
@@ -1354,16 +1402,18 @@ module.exports = class PingNotification {
                 timestamp: Date.now(),
             }
 
+            /* PN History disabled
             this.sessionMessages.push({id: messageToConstruct.id, channel_id: channel.id, author: author.id, dummy: true, fullMessage: messageToConstruct});
+            */
             this.showNotification(messageToConstruct, parentChannel, {notify: true}, channel);
-            NotificationSoundModule.playNotificationSound("message1", 0.4);
+            this.NotificationSoundModule.playNotificationSound("message1", 0.4);
         }
     }
 
     async threadDeleteHandler(event) {
         this.sessionMessages.forEach(item => {
             if (event.channel.id === item.channel_id && item.dummy === true) {
-                const author = UserStore.getUser(item.author);
+                const author = this.UserStore.getUser(item.author);
                 const messageToConstruct = {
                     id: item.id,
                     channel_id: event.channel.parent_id,
@@ -1381,7 +1431,7 @@ module.exports = class PingNotification {
     async reactionRemoveHandler(event) {
         this.sessionMessages.forEach(item => {
             if (item.dummy === true && event.userId === item.author && event.messageId === item.fullMessage?.message_reference?.message_id) {
-                const author = UserStore.getUser(item.author);
+                const author = this.UserStore.getUser(item.author);
                 const newId = `PingNotification-ReactionRemoved-${Date.now()}`;
                 const messageToConstruct = {
                     id: newId,
@@ -1405,8 +1455,8 @@ module.exports = class PingNotification {
     }
 
     async onReactionReceived(event) {
-        const currentUser = UserStore.getCurrentUser();
-        const presence = PresenceStore.getStatus(currentUser.id);
+        const currentUser = this.UserStore.getCurrentUser();
+        const presence = this.PresenceStore.getStatus(currentUser.id);
         const realId = event.messageId;
 
         if (presence.status === "dnd" && this.settings.overrideDND === "off") {
@@ -1415,19 +1465,19 @@ module.exports = class PingNotification {
 
         if (event.messageAuthorId !== currentUser.id) return;
 
-        const channel = ChannelStore.getChannel(event.channelId);
+        const channel = this.ChannelStore.getChannel(event.channelId);
         const reactionsIgnoredServers = this.settings.reactionsIgnoredServers?.split(",").map(s => s.trim()).filter(Boolean) || [];
         const reactionsIgnoredChannels = this.settings.reactionsIgnoredChannels?.split(",").map(s => s.trim()).filter(Boolean) || [];
         if (reactionsIgnoredServers.includes(channel?.guild_id)) return;
         if (reactionsIgnoredChannels.includes(event.channelId)) return;
 
-        let reacter = UserStore.getUser(event.userId);
+        let reacter = this.UserStore.getUser(event.userId);
         if (!reacter) {
-            reacter = await UserFetchModule.fetchUser(event.userId);
+            reacter = await this.UserFetchModule.fetchUser(event.userId);
         }
 
         if (reacter.id === currentUser.id) return;
-        if (channel.id === SelectedChannelStore.getChannelId() && !this.settings.sameChannelReactionNotifications) return;
+        if (channel.id === this.SelectedChannelStore.getChannelId() && !this.settings.sameChannelReactionNotifications) return;
         let content = "";
         if (event.emoji.id) {
             content = `reacted <a:${event.emoji.name}:${event.emoji.id}> to your message`
@@ -1450,10 +1500,12 @@ module.exports = class PingNotification {
         }
 
 
-        this.sessionMessages.push({id: messageToConstruct.id, channel_id: channel.id, author: reacter.id, dummy: true, fullMessage: messageToConstruct});
+            /* PN History disabled
+            this.sessionMessages.push({id: messageToConstruct.id, channel_id: channel.id, author: reacter.id, dummy: true, fullMessage: messageToConstruct});
+            */
         this.showNotification(messageToConstruct, channel, {notify: true}, undefined, realId);
         if (this.settings.simulateAudioNotificationReaction) {
-            NotificationSoundModule.playNotificationSound("message1", 0.4);
+            this.NotificationSoundModule.playNotificationSound("message1", 0.4);
         }
     }
 
@@ -1463,7 +1515,7 @@ module.exports = class PingNotification {
             overrideStatus = true;
         }
 
-        const shouldNotifyDiscordModule = NotificationUtils(message, message.channel_id, this.settings.sameChannelNotifications, overrideStatus);
+        const shouldNotifyDiscordModule = this.NotificationUtils(message, message.channel_id, this.settings.sameChannelNotifications, overrideStatus);
         let keywordMatch = null;
 
         if (this.settings.enableKeywordNotifications && 
@@ -1546,13 +1598,13 @@ module.exports = class PingNotification {
             }
             
             if (hasKeywordMatch && this.settings.simulateAudioNotification && !shouldNotifyDiscordModule) {
-                NotificationSoundModule.playNotificationSound("message1", 0.4);
+                this.NotificationSoundModule.playNotificationSound("message1", 0.4);
             }
         }
 
         if (shouldNotifyDiscordModule || keywordMatch) {
             if (this.settings.overrideDND === "onWithSound") {
-                NotificationSoundModule.playNotificationSound("message1", 0.4);
+                this.NotificationSoundModule.playNotificationSound("message1", 0.4);
             }
             return { 
                 notify: true,
@@ -1572,21 +1624,21 @@ module.exports = class PingNotification {
             notificationElement.classList.add('centre');
         }
         
-        let message = MessageStore.getMessage(channel.id, messageEvent.id);
+        let message = this.MessageStore.getMessage(channel.id, messageEvent.id);
 
         if (!message){
-            message = constructMessageObj(messageEvent);
+            message = this.constructMessageObj(messageEvent);
             addMessage(message);
         }
 
         if (message.messageReference) {
 
-            if (ReferencedMessageStore.getMessageByReference(message.messageReference).state !== 0) {
-                let referencedMessage = MessageStore.getMessage(message.messageReference.channel_id, message.messageReference.message_id);
+            if (this.ReferencedMessageStore.getMessageByReference(message.messageReference).state !== 0) {
+                let referencedMessage = this.MessageStore.getMessage(message.messageReference.channel_id, message.messageReference.message_id);
 
                 if (!referencedMessage) {
 
-                    referencedMessage = await MessageActions.fetchMessage({
+                    referencedMessage = await this.MessageActions.fetchMessage({
                         channelId: message.messageReference.channel_id,
                         messageId: message.messageReference.message_id
                     }).catch(error => {
@@ -1596,7 +1648,7 @@ module.exports = class PingNotification {
                 }
 
                 if (referencedMessage) {
-                    updateMessageReferenceStore(referencedMessage);
+                    this.updateMessageReferenceStore(referencedMessage);
                 }
             }
         }
@@ -1657,14 +1709,14 @@ module.exports = class PingNotification {
 
         this.activeNotifications.push(notificationElement);
 
-        if (container) {
-            if (appElem && appElem.nextSibling) {
-                container.insertBefore(notificationElement, appElem.nextSibling);
-            } else if (appElem) {
-                container.appendChild(notificationElement);
+        if (this.container) {
+            if (this.appElem && this.appElem.nextSibling) {
+                this.container.insertBefore(notificationElement, this.appElem.nextSibling);
+            } else if (this.appElem) {
+                this.container.appendChild(notificationElement);
                 console.log("PingNotification: Imperfect insert location. Report to DaddyBoard please!");
             } else {
-                container.appendChild(notificationElement);
+                this.container.appendChild(notificationElement);
                 console.log("PingNotification: fallback insert location. Report to DaddyBoard please!");
             } 
         }
@@ -1674,25 +1726,27 @@ module.exports = class PingNotification {
         
         this.adjustNotificationPositions();
         
-        liveMessages.push(message.id);
+        this.liveMessages.push(message.id);
 
         if (message.type == 21) return;
 
+        /* PN History disabled
         if (!String(message.id).includes("PingNotification") && this.settings.showHistoryButton) {
             this.sessionMessages.push({id: message.id, channel_id: channel.id, author: message.author.id});
         }
+        */
         return notificationElement;
     }
 
     removeNotification(notificationElement) {
-        if (container && container.contains(notificationElement)) {
+        if (this.container && this.container.contains(notificationElement)) {
             if (this.settings.readChannelOnClose && notificationElement.manualClose && !notificationElement.isTestNotification) {
-                ChannelAckModule(notificationElement.channelId);
+                this.ChannelAckModule(notificationElement.channelId);
             }
             notificationElement.root.unmount();
-            container.removeChild(notificationElement);
+            this.container.removeChild(notificationElement);
             this.activeNotifications = this.activeNotifications.filter(n => n !== notificationElement);
-            liveMessages = liveMessages.filter(id => id !== notificationElement.messageId);
+            this.liveMessages = this.liveMessages.filter(id => id !== notificationElement.messageId);
             this.adjustNotificationPositions();
             if (notificationElement.isTestNotification && this.activeNotifications.filter(n => n.isTestNotification).length === 0) {
                 this.testNotificationData = null;
@@ -1702,9 +1756,9 @@ module.exports = class PingNotification {
 
     removeAllNotifications() {
         this.activeNotifications.forEach(notification => {
-            if (container && container.contains(notification)) {
+            if (this.container && this.container.contains(notification)) {
                 notification.root.unmount();
-                container.removeChild(notification);
+                this.container.removeChild(notification);
             }
         });
         this.activeNotifications = [];
@@ -1767,9 +1821,9 @@ module.exports = class PingNotification {
         });
         
         if (threadChannel) {
-            transitionTo(channel.guild_id, threadChannel.id);
+            this.transitionTo(channel.guild_id, threadChannel.id);
         } else {
-            transitionTo(channel.guild_id, channel.id, message.id);
+            this.transitionTo(channel.guild_id, channel.id, message.id);
         }
     }
 
@@ -1802,6 +1856,10 @@ module.exports = class PingNotification {
                         setting.note = `Add servers you want to be ${mode.toLowerCase()} for keywords from, separated by commas. Example: \`1234567890, 1234567891\``;
                     }
                     if (setting.id === 'showHistoryButton') {
+                        setting.disabled = true;
+                        setting.note = "PN History temporarily disabled (Discord removed renderMessage from Inbox).";
+                        setting.value = false;
+                        /* PN History disabled
                         setting.onChange = (value) => {
                             plugin.settings[setting.id] = value;
                             plugin.saveSettings(plugin.settings);
@@ -1811,6 +1869,7 @@ module.exports = class PingNotification {
                                 plugin.unpatchTitleBar();
                             }
                         };
+                        */
                     }
                     if (['simulateAudioNotificationReaction', 'sameChannelReactionNotifications'].includes(setting.id)) {
                         setting.disabled = !plugin.settings.enableReactionNotifications;
@@ -1889,7 +1948,7 @@ module.exports = class PingNotification {
         
         const notificationChannel = notificationElement.isTestNotification 
             ? (this.testNotificationData?.channel || notificationElement.testChannel) 
-            : ChannelStore.getChannel(channelId || updatedMessage.channel_id);
+            : this.ChannelStore.getChannel(channelId || updatedMessage.channel_id);
         if (!notificationChannel) {
             return;
         }
@@ -1948,10 +2007,10 @@ module.exports = class PingNotification {
             testChannel = this.testNotificationData.channel;
             testMessage = this.testNotificationData.message;
         } else {
-            const channelIds = ChannelStore.getChannelIds();
+            const channelIds = this.ChannelStore.getChannelIds();
 
             for (const channelId of channelIds) {
-                const channel = ChannelStore.getChannel(channelId);
+                const channel = this.ChannelStore.getChannel(channelId);
                 if (channel) {
                     testChannel = channel;
                     break;
@@ -1962,12 +2021,12 @@ module.exports = class PingNotification {
                 return null;
             }
 
-            testMessage = new MessageConstructor({
+            testMessage = new this.MessageConstructor({
                 id: "0",
                 flags: 0,
-                content: '<@' + UserStore.getCurrentUser().id + '> This is a test notification to help visualize the changes you are making.\n\nI have spent a lot of time and effort on this plugin, I would appreciate it if you could take two seconds out of your day to: \n:star: this project on GitHub [here](https://github.com/DaddyBoard/BD-Plugins)\n:thumbsup: on BD Page [here](https://betterdiscord.app/plugin/PingNotification)\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. \n\nSed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?',
+                content: '<@' + this.UserStore.getCurrentUser().id + '> This is a test notification to help visualize the changes you are making.\n\nI have spent a lot of time and effort on this plugin, I would appreciate it if you could take two seconds out of your day to: \n:star: this project on GitHub [here](https://github.com/DaddyBoard/BD-Plugins)\n:thumbsup: on BD Page [here](https://betterdiscord.app/plugin/PingNotification)\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. \n\nSed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?',
                 channel_id: testChannel.id,
-                author: UserStore.getCurrentUser(),
+                author: this.UserStore.getCurrentUser(),
                 mentioned: true,
                 attachments: []
             });
@@ -1993,8 +2052,8 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
         message: propMessage,
         deleted: false
     });
-    let message = useStateFromStores([MessageStore], function () {
-        const message = MessageStore.getMessage(propMessage.channel_id, propMessage.id);
+    let message = plugin.useStateFromStores([plugin.MessageStore], function () {
+        const message = plugin.MessageStore.getMessage(propMessage.channel_id, propMessage.id);
         if (message) 
             oldMsg.current = {
                 message: message
@@ -2011,9 +2070,9 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
     }
     
     
-    const guild = channel.guild_id ? GuildStore.getGuild(channel.guild_id) : null;
-    const member = guild ? GuildMemberStore.getMember(guild.id, message.author.id) : null;
-    const user = UserStore.getUser(message.author.id);
+    const guild = channel.guild_id ? plugin.GuildStore.getGuild(channel.guild_id) : null;
+    const member = guild ? plugin.GuildMemberStore.getMember(guild.id, message.author.id) : null;
+    const user = plugin.UserStore.getUser(message.author.id);
 
     const [isPaused, setIsPaused] = React.useState(false);
 
@@ -2028,7 +2087,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
         if (channel.guild_id && !oldMsg.current.deleted) {
             title = guild ? `${guild.name} • #${channel.name}` : `Unknown Server • #${channel.name}`;
         } else if (channel.type === 3 && !oldMsg.current.deleted) {
-            const recipients = channel.recipients?.map(id => UserStore.getUser(id)).filter(u => u);
+            const recipients = channel.recipients?.map(id => plugin.UserStore.getUser(id)).filter(u => u);
             const name = channel.name || recipients?.map(u => u.username).join(', ');
             title = `Group Chat • ${name}`;
         } else if (!oldMsg.current.deleted) {
@@ -2068,7 +2127,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
 
     const roleColor = React.useMemo(() => {
         if (!guild || !member || !member.roles) return null;
-        const guildRoles = GuildRoleStore.getRolesSnapshot(guild.id);
+        const guildRoles = plugin.GuildRoleStore.getRolesSnapshot(guild.id);
         if (!guildRoles) return null;
         
         const roles = member.roles
@@ -2081,7 +2140,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
     }, [guild?.id, member?.roles]);
 
     const displayName = React.useMemo(() => {
-        const customNickname = RelationshipStore.getNickname(message.author.id);
+        const customNickname = plugin.RelationshipStore.getNickname(message.author.id);
         if (settings.useFriendNicknames && !channel.guild_id && customNickname) {
             return customNickname;
         }
@@ -2097,10 +2156,10 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
         return message.author.username;
     }, [settings.showNicknames, settings.useFriendNicknames, member?.nick, message.author.username, settings.usernameOrDisplayName, channel.guild_id]);
 
-    const presence = useStateFromStores([PresenceStore], () => PresenceStore.getStatus(message.author.id));
-    const isMobile = useStateFromStores([PresenceStore], () => PresenceStore.isMobileOnline(message.author.id));
-    const isVR = useStateFromStores([PresenceStore], () => PresenceStore.isVROnline?.(message.author.id) ?? !!PresenceStore.getClientStatus?.(message.author.id)?.vr);
-    const isSpeaking = useStateFromStores([SpeakingStore], () => SpeakingStore.isSpeaking(message.author.id));
+    const presence = plugin.useStateFromStores([plugin.PresenceStore], () => plugin.PresenceStore.getStatus(message.author.id));
+    const isMobile = plugin.useStateFromStores([plugin.PresenceStore], () => plugin.PresenceStore.isMobileOnline(message.author.id));
+    const isVR = plugin.useStateFromStores([plugin.PresenceStore], () => plugin.PresenceStore.isVROnline?.(message.author.id) ?? !!plugin.PresenceStore.getClientStatus?.(message.author.id)?.vr);
+    const isSpeaking = plugin.useStateFromStores([plugin.SpeakingStore], () => plugin.SpeakingStore.isSpeaking(message.author.id));
 
     const avatarUrlSrc = React.useMemo(() => {
         if (message.author.id === "1") return "https://discord.com/assets/9380e4b5bd8d267c.png";
@@ -2310,7 +2369,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
                     transform: `translate(-50%, -50%) scale(${avatarSize / 40})`,
                     transformOrigin: 'center center',
                 }
-            }, React.createElement(MemberAreaAvatar, {
+            }, React.createElement(plugin.MemberAreaAvatar, {
                 "aria-label": message.author.username,
                 avatarDecoration: message.author.avatarDecorationData
                     ? `https://cdn.discordapp.com/avatar-decoration-presets/${message.author.avatarDecorationData.asset}.png?size=44&passthrough=false`
@@ -2416,7 +2475,7 @@ function NotificationComponent({ message:propMessage, channel, settings, isKeywo
                     pointerEvents: settings.disableMediaInteraction ? 'none' : 'auto'
                 },
             }, 
-                React.createElement(Message, {
+                React.createElement(plugin.Message, {
                     id: `${message.id}-${message.id}`,
                     groupId: message.id,
                     channel: channel,
@@ -2473,9 +2532,9 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
     const [manualPause, setManualPause] = React.useState(false);
 
     const isAFK = settings.pinOnAFK && settings.showTimer ?
-        useStateFromStores([IdleStore], () => IdleStore.isAFK()) : false;
+        plugin.useStateFromStores([plugin.IdleStore], () => plugin.IdleStore.isAFK()) : false;
     const isWindowVisible = settings.pinOnWindowNotVisible && settings.showTimer ?
-        useStateFromStores([WindowStore], () => WindowStore.isVisible()) : true;
+        plugin.useStateFromStores([plugin.WindowStore], () => plugin.WindowStore.isVisible()) : true;
 
     const shouldBePausedByAFK = settings.pinOnAFK && settings.showTimer && isAFK;
     const shouldBePausedByWindow = settings.pinOnWindowNotVisible && settings.showTimer && !isWindowVisible;
@@ -2555,7 +2614,7 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
                 width: '100%',
             }
         },
-            DiscordProgressBar && React.createElement(DiscordProgressBar, {
+            plugin.DiscordProgressBar && React.createElement(plugin.DiscordProgressBar, {
                 percent: progress,
                 foregroundGradientColor: [progressColorString, progressColorString],
                 animate: true
@@ -2624,31 +2683,104 @@ function ProgressBar({ duration, isPaused, onComplete, showTimer, settings }) {
 }
 
 function addMessage(message) {
-    const channel = ChannelConstructor.getOrCreate(message.channel_id);
-
-    const newChannel = channel.mutate(r => {
-        r.ready = true;
-        r.cached = true;
-        r._map[message.id] = message;
+    console.log("[PN History] addMessage", {
+        id: message?.id,
+        channel_id: message?.channel_id,
+        hasChannelConstructor: !!plugin.ChannelConstructor,
+        content: message?.content?.slice?.(0, 80)
     });
+    try {
+        const channel = plugin.ChannelConstructor.getOrCreate(message.channel_id);
+        console.log("[PN History] addMessage channel", !!channel, channel?.id);
 
-    ChannelConstructor.commit(newChannel);
+        const newChannel = channel.mutate(r => {
+            r.ready = true;
+            r.cached = true;
+            r._map[message.id] = message;
+        });
+
+        plugin.ChannelConstructor.commit(newChannel);
+        const stored = plugin.MessageStore.getMessage(message.channel_id, message.id);
+        console.log("[PN History] addMessage after commit MessageStore hit", !!stored, stored?.id);
+    } catch (e) {
+        console.error("[PN History] addMessage failed:", e);
+    }
 }
 
+/* PN History disabled
 function RenderMessage({message, item, onClickCallback, shiftHeld}) {
-    if (!renderMessage) return null;
+    console.log("[PN History] RenderMessage enter", {
+        id: message?.id,
+        channel_id: message?.channel_id,
+        state: message?.state,
+        hasRenderMessage: typeof plugin.renderMessage,
+        itemId: item?.id,
+        dummy: item?.dummy
+    });
+
+    if (!plugin.renderMessage) {
+        console.error("[PN History] RenderMessage: plugin.renderMessage missing");
+        return null;
+    }
 
     const isThreadDummy = item?.id?.startsWith('PingNotification-Thread-');
     const jumpChannelId = item?.fullMessage?.message_reference?.channel_id ?? message.channel_id;
     const jumpMessageId = isThreadDummy ? null : (item?.fullMessage?.message_reference?.message_id ?? message.id);
 
-    const [node] = renderMessage(message, () => {
-        const channel = ChannelStore.getChannel(jumpChannelId);
-        transitionTo(channel.guild_id, channel.id, jumpMessageId);
-        if (onClickCallback) onClickCallback();
+    let renderResult;
+    try {
+        renderResult = plugin.renderMessage(message, () => {
+            const channel = plugin.ChannelStore.getChannel(jumpChannelId);
+            plugin.transitionTo(channel.guild_id, channel.id, jumpMessageId);
+            if (onClickCallback) onClickCallback();
+        });
+    } catch (e) {
+        console.error("[PN History] RenderMessage: renderMessage() threw:", e);
+        return null;
+    }
+
+    console.log("[PN History] RenderMessage renderResult", {
+        isArray: Array.isArray(renderResult),
+        type: typeof renderResult,
+        keys: renderResult && !Array.isArray(renderResult) ? Object.keys(renderResult) : null,
+        length: Array.isArray(renderResult) ? renderResult.length : null,
+        first: Array.isArray(renderResult) ? renderResult[0] : renderResult
     });
 
-    const messageContainer = node.type(node.props)?.props?.children?.[1];
+    const [node] = Array.isArray(renderResult) ? renderResult : [renderResult];
+    if (!node) {
+        console.error("[PN History] RenderMessage: no node from renderMessage");
+        return null;
+    }
+
+    console.log("[PN History] RenderMessage node", {
+        hasType: typeof node.type,
+        propsKeys: node.props ? Object.keys(node.props) : null
+    });
+
+    let typed;
+    try {
+        typed = typeof node.type === "function" ? node.type(node.props) : null;
+    } catch (e) {
+        console.error("[PN History] RenderMessage: node.type(node.props) threw:", e);
+        return null;
+    }
+
+    console.log("[PN History] RenderMessage typed", {
+        typed: !!typed,
+        childrenType: typed?.props?.children == null ? null : Array.isArray(typed.props.children) ? "array" : typeof typed.props.children,
+        childrenLen: Array.isArray(typed?.props?.children) ? typed.props.children.length : null,
+        children0: Array.isArray(typed?.props?.children) ? typed.props.children[0] : typed?.props?.children,
+        children1: Array.isArray(typed?.props?.children) ? typed.props.children[1] : null
+    });
+
+    const messageContainer = typed?.props?.children?.[1];
+    if (!messageContainer) {
+        console.error("[PN History] RenderMessage: messageContainer missing (children[1] empty). Full typed.props:", typed?.props);
+        return null;
+    }
+
+    console.log("[PN History] RenderMessage success", message.id);
     
     if (message.state === "SEND_FAILED" && !shiftHeld) {
         return React.cloneElement(messageContainer, {}, messageContainer.props.children[1]);
@@ -2669,7 +2801,7 @@ function createPopout(pluginInstance) {
             const { hover } = this.state;
             const fillColor = hover ? 'white' : '#8b8c91';
 
-            return React.createElement(PopoutModule, {
+            return React.createElement(plugin.PopoutModule, {
                 position: 'bottom',
                 align: 'center',
                 targetElementRef: this.buttonRef,
@@ -2785,26 +2917,47 @@ class PopoutContent extends React.Component {
         const groupedMessages = [];
         let currentGroup = null;
 
+        console.log("[PN History] PopoutContent.render", {
+            sessionCount: pluginInstance.sessionMessages.length,
+            displayCount,
+            showing: messagesToDisplay.length,
+            hasRenderMessage: typeof plugin.renderMessage,
+            hasMessageStore: !!plugin.MessageStore,
+            hasChannelConstructor: !!plugin.ChannelConstructor,
+            hasConstructMessageObj: typeof plugin.constructMessageObj,
+            hasMessageConstructor: !!plugin.MessageConstructor,
+            items: messagesToDisplay.map(i => ({ id: i.id, channel_id: i.channel_id, dummy: i.dummy, author: i.author }))
+        });
+
         messagesToDisplay.forEach((item) => {
-            let message = MessageStore.getMessage(item.channel_id, item.id);
+            let message = plugin.MessageStore.getMessage(item.channel_id, item.id);
+            console.log("[PN History] resolve item", item.id, {
+                fromStore: !!message,
+                dummy: item.dummy,
+                channel_id: item.channel_id
+            });
 
             if (!message) {
                 if (item.dummy === true) {
-                    message = constructMessageObj(item.fullMessage);
+                    console.log("[PN History] reconstructing dummy", item.id, !!item.fullMessage);
+                    message = plugin.constructMessageObj(item.fullMessage);
+                    console.log("[PN History] constructMessageObj(dummy) =>", !!message, message?.id);
                     addMessage(message);
                 }
                 else {
-                    const deletedMessageObj = new MessageConstructor({
+                    console.log("[PN History] building deleted placeholder", item.id);
+                    const deletedMessageObj = new plugin.MessageConstructor({
                         id: item.id,
                         flags: 0,
                         content: 'MESSAGE DELETED',
                         channel_id: item.channel_id,
-                        author: UserStore.getUser(item.author),
+                        author: plugin.UserStore.getUser(item.author),
                         mentioned: true,
                         attachments: [],
                         state: "SEND_FAILED"
                     });
-                    const deletedMessage = constructMessageObj(deletedMessageObj);
+                    const deletedMessage = plugin.constructMessageObj(deletedMessageObj);
+                    console.log("[PN History] constructMessageObj(deleted) =>", !!deletedMessage, deletedMessage?.id, "author", !!plugin.UserStore.getUser(item.author));
                     addMessage(deletedMessage);
                     message = deletedMessage;
                 }
@@ -2820,6 +2973,8 @@ class PopoutContent extends React.Component {
                 currentGroup.messages.push(item);
             }
         });
+
+        console.log("[PN History] groups", groupedMessages.map(g => ({ channel_id: g.channel_id, count: g.messages.length })));
 
         const sentinelPosition = displayCount - 3;
         let messageCounter = 0;
@@ -2855,10 +3010,13 @@ class PopoutContent extends React.Component {
                     className: 'pn-hist-popout-empty'
                 }, 'No messages yet')
                 : groupedMessages.map((group, groupIndex) => {
-                    const channel = ChannelStore.getChannel(group.channel_id);
-                    if (!channel) return null;
+                    const channel = plugin.ChannelStore.getChannel(group.channel_id);
+                    if (!channel) {
+                        console.error("[PN History] group channel missing", group.channel_id);
+                        return null;
+                    }
 
-                    const guild = channel.guild_id ? GuildStore.getGuild(channel.guild_id) : null;
+                    const guild = channel.guild_id ? plugin.GuildStore.getGuild(channel.guild_id) : null;
                     const channelName = channel.name || 'Direct Message';
                     
                     let iconUrl;
@@ -2867,7 +3025,7 @@ class PopoutContent extends React.Component {
                     } else if (!guild) {
                         const recipients = channel.recipients;
                         if (recipients && recipients.length > 0) {
-                            const user = UserStore.getUser(recipients[0]);
+                            const user = plugin.UserStore.getUser(recipients[0]);
                             if (user && user.avatar) {
                                 iconUrl = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=32`;
                             } else {
@@ -2900,8 +3058,12 @@ class PopoutContent extends React.Component {
                             }, `#${channelName}`)
                         ]),
                         ...group.messages.map((item, msgIndex) => {
-                            const message = MessageStore.getMessage(item.channel_id, item.id);
-                            if (!message) return null;
+                            const message = plugin.MessageStore.getMessage(item.channel_id, item.id);
+                            if (!message) {
+                                console.error("[PN History] skip row: MessageStore miss after resolve", item.id, item.channel_id);
+                                return null;
+                            }
+                            console.log("[PN History] rendering row", item.id);
 
                             const currentIndex = messageCounter++;
                             const elements = [];
@@ -2934,6 +3096,9 @@ class PopoutContent extends React.Component {
     }
 }
 
+*/
+
+/* PN History disabled
 function reRender(selector) {
 	const target = document.querySelector(selector)?.parentElement;
 	if (!target) return;
@@ -2941,3 +3106,4 @@ function reRender(selector) {
     const unpatch = Patcher.instead("PN", instance, "render", () => unpatch());
 	instance.forceUpdate(() => instance.forceUpdate());
 }
+*/
