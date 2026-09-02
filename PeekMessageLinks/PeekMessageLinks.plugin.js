@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.9
+* @version 1.2.10
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -18,21 +18,17 @@ const [
     MessageConstructor,
     Dispatcher,
     ChannelActions,
-    Message,
     loadThreadModule
 ] = Webpack.getBulk(
-    { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") }, // MessageActions
-    { filter: Webpack.Filters.byPrototypeKeys("addReaction") }, // MessageConstructor
-    { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true }, // Dispatcher
-    { filter: m => m.clearChannel }, // ChannelActions
-    { filter: Webpack.Filters.bySource("Message must not be a thread starter message"), declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message")}, // Message
-    { filter: m => m.loadThread } // loadThreadModule
+    { filter: Webpack.Filters.byKeys("fetchMessage", "deleteMessage") },
+    { filter: Webpack.Filters.byPrototypeKeys("addReaction") },
+    { filter: Webpack.Filters.byKeys("subscribe", "dispatch"), searchExports: true },
+    { filter: m => m.clearChannel },
+    { filter: m => m.loadThread }
 );
 const loadThread = loadThreadModule?.loadThread;
 
-if (!Message) {
-    BdApi.UI.showNotice("PeekMessageLinks ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
-}
+let Message;
 
 const updateMessageReferenceStore = (() => {
     function getActionHandler() {
@@ -47,7 +43,7 @@ const updateMessageReferenceStore = (() => {
 const config = {
     changelog: [
         {
-            "title": "Fixed",
+            "title": "1.2.10",
             "type": "fixed",
             "items": [
                 "Fixes for discord updates."
@@ -154,7 +150,7 @@ module.exports = class PeekMessageLinks {
         });
     }
 
-    start() {
+    async start() {
         const lastVersion = BdApi.Data.load('PeekMessageLinks', 'lastVersion');
         if (lastVersion !== this.meta.version) {
             BdApi.UI.showChangelogModal({
@@ -164,6 +160,17 @@ module.exports = class PeekMessageLinks {
             });
             BdApi.Data.save('PeekMessageLinks', 'lastVersion', this.meta.version);
         }
+
+        Message = await Webpack.waitForModule(
+            Webpack.Filters.bySource("Message must not be a thread starter message"),
+            { declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message") }
+        );
+
+        if (!Message) {
+            BdApi.UI.showNotice("PeekMessageLinks ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
+            return;
+        }
+
         this.patchChannelMention();
     }
 
