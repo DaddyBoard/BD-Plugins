@@ -336,6 +336,7 @@ module.exports = class MoreRoleColors {
             BdApi.Data.save('MoreRoleColors', 'lastVersion', this.meta.version);
         }
 
+        this.injectCSS();
         if (this.settings.voiceUsers) this.patchVoiceUsers();
         if (this.settings.typingUsers) this.patchTypingUsers();
         if (this.settings.mentions) this.patchMentions();
@@ -420,11 +421,44 @@ module.exports = class MoreRoleColors {
         if (this._unpatchAccountArea) this._unpatchAccountArea();
         if (this._unpatchUserProfile) this._unpatchUserProfile();
         if (this._unpatchTags) this._unpatchTags();
+        BdApi.DOM.removeStyle("MoreRoleColors");
         this.forceUpdateComponents();
     }
 
     onSwitch() {
         if (this.settings.accountArea) this.patchAccountArea();
+    }
+
+    injectCSS() {
+        BdApi.DOM.addStyle("MoreRoleColors", `
+            [class*="markup_"] code,
+            [class*="markup_"] pre {
+                color: var(--text-default, var(--text-normal, #dbdee1)) !important;
+                -webkit-text-fill-color: currentColor !important;
+            }
+
+            [class*="markup_"] code * {
+                -webkit-text-fill-color: currentColor !important;
+            }
+
+            [class*="markup_"] s,
+            [class*="markup_"] del {
+                text-decoration-color: var(--text-default, var(--text-normal, #dbdee1)) !important;
+            }
+
+            [class*="markup_"] [class*="mention" i],
+            [class*="markup_"] a,
+            [class*="markup_"] [class*="timestamp"],
+            [class*="markup_"] [class*="spoilerContent"],
+            [class*="markup_"] [class*="blockquoteContent"] {
+                -webkit-text-fill-color: currentColor !important;
+            }
+
+            [class*="poll" i],
+            [class*="poll" i] * {
+                -webkit-text-fill-color: currentColor !important;
+            }
+        `);
     }
 
     forceUpdateComponents() {
@@ -461,7 +495,7 @@ module.exports = class MoreRoleColors {
             }
 
             element.style = {
-                color: "unset",
+                color: "var(--text-default, var(--text-normal, #dbdee1))",
                 background: `${gradient} text`,
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent"
@@ -873,6 +907,7 @@ module.exports = class MoreRoleColors {
         ).then((MessageContentMRC) => {
         BdApi.Patcher.after("MoreRoleColors-messages", MessageContentMRC, "type", (_, [props], res) => {
             if (!props?.message?.author?.id) return res;
+            if (props.message.type === 24) return res;
             
             const guildId = SelectedGuildStore.getGuildId();
             if (!guildId) return res;
