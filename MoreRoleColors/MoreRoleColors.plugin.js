@@ -844,7 +844,7 @@ module.exports = class MoreRoleColors {
 
     patchRoleHeaders() {
         BdApi.Webpack.waitForModule(BdApi.Webpack.Filters.bySource('="content-inventory-feed"'), {raw:true}).then((roleHeaderModule) => {
-            BdApi.Patcher.after("MoreRoleColors-roleHeaders", roleHeaderModule.declarations.ik, "type", (_, [props], res) => {
+            BdApi.Patcher.after("MoreRoleColors-roleHeaders", roleHeaderModule.declarations.c3.Y, "type", (_, [props], res) => {
             let roleNameArea = Utils.findInTree(res, (m) => m?.className?.includes('membersGroupName'))
             if (roleNameArea) {
                 const guildId = SelectedGuildStore.getGuildId();
