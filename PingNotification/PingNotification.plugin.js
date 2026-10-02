@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.4.5
+ * @version 9.4.6
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -71,10 +71,10 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "9.4.5",
+            "title": "9.4.6",
             "type": "added",
             "items": [
-                "Fixed launch issues, re-enabled history and reverted back temporary code."
+                "Fixed plugin not working at all"
             ]
         }
     ],
@@ -697,10 +697,18 @@ module.exports = class PingNotification {
         const channelAckModule = Webpack.getModule((e, m) => channelAckFilter(Webpack.modules[m.id]));
         ChannelAckModule = Object.values(channelAckModule).find(m => m.toString().includes("type:\"CHANNEL_ACK\",channelId"));
 
-        const nodes = Dispatcher._actionHandlers._dependencyGraph.nodes;
-        const storeHandlers = Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
-        const createPendingReply = storeHandlers.actionHandler["CREATE_PENDING_REPLY"];
-        updateMessageReferenceStore = (message) => createPendingReply({ message });
+        const actionHandlers = Dispatcher?._actionHandlers;
+        const nodes = actionHandlers?._nodes ?? actionHandlers?._dependencyGraph?.nodes;
+        const storeHandlers = nodes instanceof Map
+            ? [...nodes.values()].find(({ name }) => name === "ReferencedMessageStore")
+            : nodes && Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
+        const createPendingReply = storeHandlers?.actionHandler?.CREATE_PENDING_REPLY;
+        if (typeof createPendingReply !== "function") {
+            this.reportMissingModule("ReferencedMessageStore");
+        }
+        updateMessageReferenceStore = (message) => {
+            if (typeof createPendingReply === "function") createPendingReply({ message });
+        };
 
         let missingModulesName = null;
         if (!appSidePanelSelectors?.app) missingModulesName = "appSidePanelSelectors";
