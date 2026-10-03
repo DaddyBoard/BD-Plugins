@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.12
+* @version 1.0.13
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -15,10 +15,10 @@ const { Filters } = Webpack;
 const config = {
     changelog: [
         {
-            "title": "v1.0.12",
+            "title": "v1.0.13",
             "type": "fixed",
             "items": [
-                "Plugin loads first time now."
+                "Right click on chat avatar now opens the correct user context menu (instead of the weird short one it was before)."
             ]
         }
     ],
@@ -183,9 +183,11 @@ module.exports = class StatusEverywhereV2 {
         this.SpeakingStore = Webpack.getStore("SpeakingStore");
         this.SelectedGuildStore = Webpack.getStore("SelectedGuildStore");
 
+        const memberAreaAvatarFilter = Filters.byStrings("statusColor", "isTyping");
+
         this._corePromise = Promise.all([
             Webpack.waitForModule(Filters.byStrings("getStateFromStores"), { searchExports: true }),
-            Webpack.waitForModule(x => Filters.byStrings("statusColor", "isTyping")(x?.type), { searchExports: true }),
+            Webpack.waitForModule(x => memberAreaAvatarFilter(x?.type), { searchExports: true }),
         ]).then(([useStateFromStores, MemberAreaAvatar]) => {
             this.useStateFromStores = useStateFromStores;
             this.MemberAreaAvatar = MemberAreaAvatar;
@@ -203,7 +205,7 @@ module.exports = class StatusEverywhereV2 {
 
         this._chatDepsPromise = Promise.all([
             Webpack.waitForModule(Filters.bySource("getUserTag", "referencedUsernameProfile", "interactionUsernameProfile"), { defaultExport: false }).then((mod) => {
-                this.useUserContextMenu = mod.UY;
+                this.useUserContextMenu = mod.r4;
             }),
             Webpack.waitForModule(Filters.byStrings("Unsupported animation config:"), { searchExports: true }).then((mod) => {
                 this.Popout = mod;
