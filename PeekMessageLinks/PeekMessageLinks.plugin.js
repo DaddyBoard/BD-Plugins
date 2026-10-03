@@ -1,7 +1,7 @@
 /**
 * @name PeekMessageLinks
 * @author DaddyBoard
-* @version 1.2.10
+* @version 1.2.11
 * @description Clicking on message links will open a popup with the message content.
 * @source https://github.com/DaddyBoard/BD-Plugins
 * @invite ggNWGDV7e2
@@ -30,23 +30,31 @@ const loadThread = loadThreadModule?.loadThread;
 
 let Message;
 
+let referenceHandlerMissing = false;
+
 const updateMessageReferenceStore = (() => {
     function getActionHandler() {
-        const nodes = Dispatcher._actionHandlers._dependencyGraph.nodes;
-        const storeHandlers = Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
-        return storeHandlers.actionHandler["CREATE_PENDING_REPLY"];
+        const actionHandlers = Dispatcher?._actionHandlers;
+        const nodes = actionHandlers?._nodes ?? actionHandlers?._dependencyGraph?.nodes;
+        const storeHandlers = nodes instanceof Map
+            ? [...nodes.values()].find(({ name }) => name === "ReferencedMessageStore")
+            : nodes && Object.values(nodes).find(({ name }) => name === "ReferencedMessageStore");
+        return storeHandlers?.actionHandler?.CREATE_PENDING_REPLY;
     }
     const target = getActionHandler();
-    return (message) => target({ message });
+    referenceHandlerMissing = typeof target !== "function";
+    return (message) => {
+        if (typeof target === "function") target({ message });
+    };
 })();
 
 const config = {
     changelog: [
         {
-            "title": "1.2.10",
+            "title": "1.2.11",
             "type": "fixed",
             "items": [
-                "Fixes for discord updates."
+                "Fixed startup crash"
             ]
         }
     ],
@@ -169,6 +177,10 @@ module.exports = class PeekMessageLinks {
         if (!Message) {
             BdApi.UI.showNotice("PeekMessageLinks ERROR: Could not resolve the Message component. Please report this on the Github page!", { type: 'error' });
             return;
+        }
+
+        if (referenceHandlerMissing) {
+            BdApi.UI.showNotice("PeekMessageLinks ERROR: Could not find the ReferencedMessageStore module. Please report this on the Github page!", { type: 'error' });
         }
 
         this.patchChannelMention();
