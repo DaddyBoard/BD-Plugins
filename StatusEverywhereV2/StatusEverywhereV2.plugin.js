@@ -1,7 +1,7 @@
 /**
 * @name StatusEverywhereV2
 * @author DaddyBoard
-* @version 1.0.13
+* @version 1.0.14
 * @description Show status everywhere (chat avatars and voice chat avatars)
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/StatusEverywhereV2
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/StatusEverywhereV2/StatusEverywhereV2.plugin.js
@@ -15,10 +15,10 @@ const { Filters } = Webpack;
 const config = {
     changelog: [
         {
-            "title": "v1.0.13",
+            "title": "v1.0.14",
             "type": "fixed",
             "items": [
-                "Right click on chat avatar now opens the correct user context menu (instead of the weird short one it was before)."
+                "Fixed speaking status."
             ]
         }
     ],
@@ -319,7 +319,7 @@ module.exports = class StatusEverywhereV2 {
                 const avatarProps = {
                     "aria-label": message.author.username,
                     avatarDecoration: avatarDecoration,
-                    isSpeaking: plugin.settings.showSpeakingStatusChatAvatars ? Speaking : false,
+                    voiceStatus: plugin.settings.showSpeakingStatusChatAvatars && Speaking ? "speaking" : null,
                     size: "SIZE_40",
                     src: avatarUrlSrc,
                     isMobile: isMobile,
@@ -406,7 +406,7 @@ module.exports = class StatusEverywhereV2 {
                 const avatarProps = {
                     "aria-label": nick,
                     className: "StatusEverywhereV2-AvatarVC",
-                    isSpeaking: showSpeakingStatus ? props.speaking : false,
+                    voiceStatus: showSpeakingStatus && props.speaking ? "speaking" : null,
                     size: "SIZE_24",
                     src: avatarUrlSrc,
                     isMobile: isMobile,
