@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.4.6
+ * @version 9.4.7
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -71,10 +71,11 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "9.4.6",
+            "title": "9.4.7",
             "type": "added",
             "items": [
-                "Fixed plugin not working at all"
+                "Fixed reaction and thread notifications not properly transitioning to the correct channel when clicked via the History popout. Thanks so much `@dangilberttx` for your time assisting with debugging",
+                "Also a big shout-out to `@dangilberttx` and `@theroken64` for continued monthly support via my Patreon. If you're interested in supporting my work, please consider becoming a patron. https://patreon.com/DaddyBoard"
             ]
         }
     ],
@@ -2931,7 +2932,14 @@ class PopoutContent extends React.Component {
                                         backgroundColor: 'transparent'
                                     },
                                     onClick: () => {
-                                        transitionTo(channel.guild_id, item.channel_id, item.id);
+                                        const id = String(item.id);
+                                        if (id.includes("PingNotification-Thread")) {
+                                            transitionTo(channel.guild_id, item.channel_id);
+                                        } else if (id.includes("PingNotification-Reaction")) {
+                                            transitionTo(channel.guild_id, item.channel_id, item.fullMessage?.message_reference?.message_id || item.id);
+                                        } else {
+                                            transitionTo(channel.guild_id, item.channel_id, item.id);
+                                        }
                                     }
                                 })
                             ]));
