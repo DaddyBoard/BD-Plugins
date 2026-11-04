@@ -1,7 +1,7 @@
 /**
 * @name BetterMentions
 * @author DaddyBoard
-* @version 1.0.3
+* @version 1.0.4
 * @description Adds profile pictures to mentions and enables click-to-profile on text editor mentions!
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/BetterMentions
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/BetterMentions/BetterMentions.plugin.js
@@ -102,14 +102,21 @@ module.exports = class BetterMentions {
             if (ele?.element?.type !== "userMention") return;
 
             this.nodePatcher.patch(res.props.children[0], (_props, ret) => {
-                if (!ret.props.children.props) return;
-                ret.props.children.props.children = React.createElement(MentionComponent.A, {
+                const inner = ret?.props?.children;
+                if (!inner?.props) return;
+                const mention = React.createElement(MentionComponent.A, {
                     className: 'mention',
                     userId: _props.id,
                     parsedUserId: _props.id,
                     channelId: _props.channelId,
                     viewingChannelId: _props.channelId
                 });
+                // Newer Discord builds wrap the editor mention in a user-profile
+                // Popout whose children is a render function. Overwriting that
+                // function with an element crashes Popout ("e is not a function"),
+                // so replace the whole wrapper: MentionComponent opens its own popout.
+                if (typeof inner.props.children === "function") ret.props.children = mention;
+                else inner.props.children = mention;
             });
         });
     }
