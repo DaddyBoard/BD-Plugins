@@ -1,7 +1,7 @@
 /**
 * @name BetterMentions
 * @author DaddyBoard
-* @version 1.0.3
+* @version 1.0.4
 * @description Adds profile pictures to mentions and enables click-to-profile on text editor mentions!
 * @website https://github.com/DaddyBoard/BD-Plugins/tree/main/BetterMentions
 * @source https://raw.githubusercontent.com/DaddyBoard/BD-Plugins/refs/heads/main/BetterMentions/BetterMentions.plugin.js
@@ -103,13 +103,15 @@ module.exports = class BetterMentions {
 
             this.nodePatcher.patch(res.props.children[0], (_props, ret) => {
                 if (!ret.props.children.props) return;
-                ret.props.children.props.children = React.createElement(MentionComponent.A, {
+                const mention = React.createElement(MentionComponent.A, {
                     className: 'mention',
                     userId: _props.id,
                     parsedUserId: _props.id,
                     channelId: _props.channelId,
                     viewingChannelId: _props.channelId
                 });
+                const children = ret.props.children.props.children;
+                ret.props.children.props.children = typeof children === "function" ? () => mention : mention;
             });
         });
     }
