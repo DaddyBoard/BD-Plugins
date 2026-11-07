@@ -2,7 +2,7 @@
  * @name PingNotification
  * @author DaddyBoard
  * @authorId 241334335884492810
- * @version 9.4.7
+ * @version 9.4.8
  * @description Show in-app notifications for anything you would hear a ping for.
  * @source https://github.com/DaddyBoard/BD-Plugins
  * @invite ggNWGDV7e2
@@ -61,7 +61,8 @@ const {
 
 function updateDOMReferences() {
     if (!appSidePanelSelectors) return;
-    ({ appAsidePanelWrapper, app } = appSidePanelSelectors);
+    appAsidePanelWrapper = appSidePanelSelectors.XX;
+    app = appSidePanelSelectors.yA;
     container = document.querySelector(`#app-mount > div.${appAsidePanelWrapper} > div`);
     appElem = container ? container.querySelector(`.${app}`) : null;
 }
@@ -71,10 +72,10 @@ let liveMessages = [];
 const config = {
     changelog: [
         {
-            "title": "9.4.7",
+            "title": "9.4.8",
             "type": "added",
             "items": [
-                "Fixed reaction and thread notifications not properly transitioning to the correct channel when clicked via the History popout. Thanks so much `@dangilberttx` for your time assisting with debugging",
+                "Fixed breakage",
                 "Also a big shout-out to `@dangilberttx` and `@theroken64` for continued monthly support via my Patreon. If you're interested in supporting my work, please consider becoming a patron. https://patreon.com/DaddyBoard"
             ]
         }
@@ -677,18 +678,18 @@ module.exports = class PingNotification {
                 { declarationFilter: (m) => m.type?.toString().includes("Message must not be a thread starter message") }
             ),
             Webpack.waitForModule((a) => a?.prototype?.render && a.Animation, { searchExports: true }),
-            Webpack.waitForModule(Filters.byKeys("bar", "trailing")),
+            Webpack.waitForModule(Filters.byKeys("M0", "ZY", "bN")),
             Webpack.waitForModule(Filters.byStrings("percent", "foregroundGradientColor"), { searchExports: true }),
             Webpack.waitForModule(Filters.byStrings("message_reference", "isProbablyAValidSnowflake"), { searchExports: true }),
             Webpack.waitForModule(Filters.byPrototypeKeys("addCachedMessages")),
             Webpack.waitForModule(Filters.byStrings("getStateFromStores"), { searchExports: true }),
-            Webpack.waitForModule(Filters.byKeys("appAsidePanelWrapper", "app")),
+            Webpack.waitForModule(Filters.byKeys("XX", "Xq", "x$")),
             Webpack.waitForModule(Filters.byKeys("hasThread")),
             Webpack.waitForModule(Filters.byKeys("messageSpine", "repliedMessageClickableSpine")),
             Webpack.waitForModule(x => MemberAreaAvatarFilter(x?.type), { searchExports: true })
         ]);
 
-        trailing = trailingModule.trailing;
+        trailing = trailingModule.ZY;
         updateDOMReferences();
 
         UserFetchModule = Webpack.getMangled("type:\"USER_PROFILE_FETCH_START\"", { fetchUser: Filters.byStrings("USER_UPDATE", "Promise.resolve") });
@@ -712,7 +713,7 @@ module.exports = class PingNotification {
         };
 
         let missingModulesName = null;
-        if (!appSidePanelSelectors?.app) missingModulesName = "appSidePanelSelectors";
+        if (!appSidePanelSelectors?.yA) missingModulesName = "appSidePanelSelectors";
         else if (!NotificationUtils) missingModulesName = "NotificationUtils";
         else if (!windowArea) missingModulesName = "windowArea";
         else if (!Dispatcher) missingModulesName = "Dispatcher";
